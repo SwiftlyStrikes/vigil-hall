@@ -984,7 +984,7 @@
   .cs-alloc .cs-row .cs-stat .cs-name{ font-weight:800; width:38px; }
   .cs-alloc .cs-row .cs-stat .cs-desc{ font-size:.7rem; color:var(--ink-faint); }
   .cs-alloc .cs-row .cs-ctl{ display:flex; align-items:center; gap:5px; }
-  .cs-bonus{ font-size:.68rem; color:#2f6cf3; font-weight:700; }
+  .cs-bonus{ white-space:nowrap; font-size:.68rem; color:#2f6cf3; font-weight:700; }
   .cs-plus{ width:20px; height:20px; border-radius:3px; font-size:.85rem; font-weight:800; display:inline-flex; align-items:center; justify-content:center; cursor:pointer;
     background:linear-gradient(180deg,#fff5c9,#e0b43a); border:1px solid #8a6a1a; color:#3a2a00; padding:0; line-height:1; }
   .cs-plus.minus{ background:linear-gradient(180deg,#f4f6fa,#c9d0dc); border-color:#8a94a8; color:#2a3550; }
@@ -6107,7 +6107,7 @@
     var ident = document.getElementById("cs-identity");
     if(ident) ident.innerHTML =
       row("Name", ch.name, "") + row("Class", ch.archetype, "") + row("Level", state.level) +
-      row("HP", Math.round(hp) + " / " + d.maxHP) + row("MP", Math.round(mp) + " / " + d.aetherMax) +
+      row("HP", Math.round(hp) + " / " + d.maxHP) + row("MP", Math.round(mp) + " / " + Math.round(d.aetherMax)) +
       row("EXP", state.xp + " / " + needed + " (" + pct.toFixed(1) + "%)") + row("Gold", fmtNum(state.resolve));
 
     var unspent = unspentPoints();
@@ -6115,14 +6115,19 @@
     if(apEl) apEl.textContent = unspent;
     var g = gearTotals();
     var pot = potentialTotals();
+    var tot = totals();
     var el = document.getElementById("alloc-list");
     el.innerHTML = STATS.map(function(s){
       var allocated = state.allocated[s.id];
-      var bonus = (g[s.id] || 0) + (pot.statFlat[s.id] || 0);
+      /* MapleStory's stat window: the total in play, then (base + bonus) where the bonus is everything gear, potential
+         (flat and %) and skills add on top of the rolled + assigned base */
+      var base = baseStat(s.id) + allocated, total = Math.floor(tot[s.id]), bonus = total - base;
+      var pct = (pot.statPct[s.id] || 0) + (pot.allStatPct || 0), flat = (g[s.id] || 0) + (pot.statFlat[s.id] || 0) + (pot.allStatFlat || 0);
+      var tip = "rolled " + baseStat(s.id) + " + " + allocated + " assigned" + (flat ? " + " + flat + " from gear" : "") + (pct ? ", x" + (1 + pct / 100).toFixed(2) + " (" + pct + "% potential)" : "");
       return '<div class="cs-row" style="--stat-color:' + s.color + '">' +
         '<span class="cs-stat"><span class="cs-name">' + s.name + '</span><span class="cs-desc">' + statEffectLine(s) + '</span></span>' +
-        '<span class="cs-ctl">' + (bonus ? '<span class="cs-bonus">+' + bonus + '</span>' : '') +
-        '<span class="cs-val num" title="rolled ' + baseStat(s.id) + ' + ' + allocated + ' assigned">' + (baseStat(s.id) + allocated) + '</span>' +
+        '<span class="cs-ctl">' + (bonus ? '<span class="cs-bonus">(' + base + ' + ' + bonus + ')</span>' : '') +
+        '<span class="cs-val num" title="' + tip + '">' + total + '</span>' +
         '<button type="button" class="cs-plus minus" data-alloc="' + s.id + '" data-dir="-1" ' + (allocated <= 0 ? "disabled" : "") + '>&minus;</button>' +
         '<button type="button" class="cs-plus" data-alloc="' + s.id + '" data-dir="1" ' + (unspent <= 0 ? "disabled" : "") + '>+</button></span>' +
         '</div>';
@@ -9657,7 +9662,7 @@ var VHSprite = (function(){
 <script>
 /* installable app: register the service worker for offline play, check for a new build on every launch, and reload
    once when a new build takes over so the update shows without a second launch */
-var VH_BUILD = "v7 · Sep 19";
+var VH_BUILD = "v8 · Sep 19";
 if("serviceWorker" in navigator){
   window.addEventListener("load", function(){
     var reloaded = false;
