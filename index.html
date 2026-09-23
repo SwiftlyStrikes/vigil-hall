@@ -441,6 +441,17 @@
   .ms-tabs button{ padding:5px 7px; font-size:.6rem; }
   .ms-foot{ flex-wrap:wrap; gap:4px; padding-top:6px; font-size:.72rem; }
   .ms-foot .ms-meso{ flex-basis:100%; }
+  .lock-mark{ position:absolute; left:2px; top:2px; width:9px; height:10px; border-radius:2px; background:#e7c667; box-shadow:0 0 0 1px #3a2a06; }
+  .lock-mark::before{ content:""; position:absolute; left:2px; top:-4px; width:5px; height:5px; border:1.5px solid #e7c667; border-bottom:0; border-radius:3px 3px 0 0; box-sizing:border-box; }
+  .tip-lock{ color:#e7c667; }
+  .shop-locked-note{ font-size:.7rem; color:var(--ink-dim); }
+  .sell-all .sa-row{ display:flex; flex-wrap:wrap; align-items:center; gap:4px 10px; margin:5px 0; font-size:.78rem; }
+  .sell-all .sa-row > b{ min-width:58px; font-size:.68rem; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-dim); }
+  .sell-all .sa-opt{ display:inline-flex; align-items:center; gap:4px; cursor:pointer; }
+  .sell-all .sa-opt input[type=number]{ width:58px; padding:2px 4px; font:inherit; }
+  .sell-all .sa-sum{ margin-top:8px; padding-top:6px; border-top:1px solid var(--border-soft); font-size:.8rem; }
+  .sell-all .sa-list{ display:flex; flex-wrap:wrap; gap:3px 10px; margin-top:6px; font-size:.7rem; max-height:96px; overflow:auto; }
+  .sell-all .sa-list em{ color:var(--ink-dim); font-style:normal; }
   .ms-status{ font-size:.72rem; color:#1c2233; background:#fff3c4; border:1px solid #e0c060; border-radius:4px; padding:4px 6px; }
   .ms-status:empty{ display:none; }
   /* the hover tooltip floats beside whatever is hovered, over every window */
@@ -1371,6 +1382,14 @@
     transition:filter .08s, transform .08s; }
   .jump-btn:active{ transform:scale(.93); filter:brightness(1.18); }
   body.play-mode .jump-wrap{ margin-bottom:8px; }
+  /* beside an NPC the Jump button is TALK: amber, with the NPC's name under the word */
+  .jump-btn.talk{ background:radial-gradient(circle at 32% 26%, #ffe9a8, #c98a1e 72%); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; }
+  .jump-btn.talk small{ display:block; font-size:.6rem; font-weight:700; letter-spacing:.02em; opacity:.95; max-width:90%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .talk-swap{ position:fixed; z-index:55; transform:translate(-50%,-100%); padding:4px 10px; border-radius:100px; border:2px solid rgba(255,255,255,.8);
+    background:rgba(20,26,48,.92); color:#fff; font-family:var(--font-mono); font-size:.66rem; font-weight:700; white-space:nowrap; touch-action:none;
+    -webkit-tap-highlight-color:transparent; box-shadow:0 3px 10px rgba(0,0,0,.5); pointer-events:auto; }
+  .talk-swap[hidden]{ display:none; }
+  body.hud-editing .talk-swap{ display:none; }
   @media (max-width:430px){ .jump-btn{ width:64px; height:64px; font-size:.72rem; } .jump-wrap{ margin-right:4px; } }
   .skill-bubbles{ position:relative; width:180px; height:180px; z-index:30; flex:none;
     touch-action:none; pointer-events:none; }
@@ -1436,7 +1455,10 @@
   /* the controls float over the arena */
   body.play-mode .touch-row{ position:absolute; left:0; right:0; bottom:0; z-index:40; pointer-events:none; align-items:flex-end;
     padding:0 calc(14px + env(safe-area-inset-right,0px)) calc(12px + env(safe-area-inset-bottom,0px)) calc(14px + env(safe-area-inset-left,0px)); }
-  body.play-mode .joy-wrap, body.play-mode .skill-bubbles, body.play-mode .jump-wrap{ pointer-events:auto; }
+  /* only the controls themselves take touches: their wrappers stay transparent, so a control moved by the layout
+     editor over another wrapper (the Jump button over the skill-bubble area, say) still gets the tap */
+  body.play-mode .joy-base, body.play-mode .jump-btn{ pointer-events:auto; }
+  body.play-mode .joy-wrap, body.play-mode .skill-bubbles, body.play-mode .jump-wrap{ pointer-events:none; }
   body.play-mode .joy-base{ width:124px; height:124px; }
   body.play-mode .joy-hint{ display:none; }
   body.play-mode .skill-bubbles{ width:300px; height:240px; --arcR:138px; }
@@ -1714,7 +1736,7 @@
             <div class="ms-tabs" id="inv-tabs"><button type="button" data-invtab="equip" class="on">EQUIP</button><button type="button" data-invtab="use">USE</button><button type="button" data-invtab="setup">SET-UP</button><button type="button" data-invtab="etc">ETC</button></div>
             <div class="ms-item-main">
               <div class="ms-grid-wrap"><div class="ms-grid" id="inv-grid"></div>
-                <div class="ms-foot"><span class="ms-meso">Gold <b class="num" id="inv-resolve">0</b></span><button type="button" class="ms-small" id="inv-sort-btn">Sort</button><button type="button" class="ms-small" id="inv-shop-btn">Restock</button><button type="button" class="ms-small" id="inv-sf-btn" title="Star Force: pick up or hover a piece of gear, then press this">&#9733; Enhance</button></div></div>
+                <div class="ms-foot"><span class="ms-meso">Gold <b class="num" id="inv-resolve">0</b></span><button type="button" class="ms-small" id="inv-sort-btn">Sort</button><button type="button" class="ms-small" id="inv-shop-btn">Restock</button><button type="button" class="ms-small" id="inv-sf-btn" title="Star Force: pick up or hover a piece of gear, then press this">&#9733; Enhance</button><button type="button" class="ms-small" id="inv-lock-btn" title="Lock or unlock the picked-up or hovered gear: locked gear cannot be sold, dropped or destroyed">&#128274; Lock</button></div></div>
               <div class="ms-status" id="ms-status"></div>
             </div>
             <div class="cube-panel" id="stars-panel" style="display:none"></div>
@@ -7549,6 +7571,7 @@
       var extra = "";
       if(c.item && c.item.potential && c.item.potential.grade > 0) extra += '<b class="pot-mark" style="background:' + POTENTIAL_GRADES[c.item.potential.grade].color + '"></b>';
       if(c.count != null) extra += '<span class="ms-count">' + c.count + '</span>';
+      if(c.item && c.item.locked) extra += '<b class="lock-mark" title="Locked"></b>';
       var rar = c.item && c.item.rarity && c.item.kind !== "supply" && c.item.kind !== "stars" ? RARITY_BY_ID[c.item.rarity] : null;
       var target = carry ? dropTargetClass(carry, c) : "";
       html += '<div class="ms-cell' + (carry && carry.key === c.key ? " carried" : "") + (invHover === c.key ? " hover" : "") + target + '" data-cell="' + i + '" data-key="' + c.key + '"' +
@@ -7568,6 +7591,7 @@
     return "";
   }
   var hoverEl = null;   /* the cell the tooltip is anchored to */
+  var invFocus = null;  /* the last gear the pointer touched: what the footer buttons act on once the tooltip has gone */
   function renderInvSide(){
     var side = document.getElementById("inv-side"); if(!side) return;
     var status = document.getElementById("ms-status");
@@ -7592,8 +7616,8 @@
     if(c.kind === "cube") return "click the gear to cube";
     if(c.kind === "potscroll") return "click gear without potential to give it potential";
     if(c.kind === "equipped") return "click an inventory slot to take it off";
-    if(c.kind === "stack") return "click a slot to move it (the top set of stars is thrown first)";
-    return "click an equipment slot to equip, or a slot to move";
+    if(c.kind === "stack") return "click a slot to move it (the top set of stars is thrown first), or the map to drop it";
+    return "click an equipment slot to equip, a slot to move, or the map to drop it";
   }
   function statName(k){ return k === "atkFlat" ? "WEAPON ATTACK" : (STAT_BY_ID[k] ? STAT_BY_ID[k].name.toUpperCase() : (GEAR_STAT_LABELS[k] || k).toUpperCase()); }
   function tooltipHTML(e){
@@ -7653,7 +7677,7 @@
         item.potential.lines.map(function(l){ return '<div>' + l.label + ' : +' + l.value + l.suffix + '</div>'; }).join("") + '</div>';
     }
     return '<div class="ms-tip"><div class="tip-head">' + iconHTML(e.icon, "big") + '<div><div class="tip-name" style="color:' + rarity.color + '">' + item.name + '</div>' +
-      '<div class="tip-sub">' + rarity.label + (e.kind === "equipped" ? " &middot; Equipped" : "") + '</div><div class="tip-req">' + reqLev + ' ' + reqStat + '</div></div></div>' +
+      '<div class="tip-sub">' + rarity.label + (e.kind === "equipped" ? " &middot; Equipped" : "") + (item.locked ? ' &middot; <span class="tip-lock">&#128274; Locked</span>' : "") + '</div><div class="tip-req">' + reqLev + ' ' + reqStat + '</div></div></div>' +
       '<div class="tip-body"><div class="tip-stat">' + jobLine + '</div>' +
       '<div class="tip-stat">' + (wt ? "WEAPON TYPE : " + wt.label + (wt.hands === 2 ? " (two-handed)" : "") : "CATEGORY : " + SLOT_META[item.slot].name) + '</div>' + speedLine + starLine + lines +
       '<div class="tip-stat">UPGRADES AVAILABLE : ' + scrollSlotsRemaining(item) + ' <em>(' + (item.slotsUsed || 0) + ' used)</em></div>' + pot +
@@ -7831,6 +7855,7 @@
       var def = SCROLL_BY_ID[c.scroll];
       if(!def.special && CATEGORY_BY_SLOT[item.slot] !== def.category){ msNotify("That scroll is for " + CATEGORY_BY_ID[def.category].label + " only."); return; }
       if(scrollSlotsRemaining(item) < 1 && def.special !== "white" && def.special !== "protect"){ msNotify("No upgrade slots left on " + item.name + "."); return; }
+      if(item.locked && def.destroyPct > 0){ msNotify(item.name + " is locked: unlock it before risking a scroll that can destroy it."); return; }
       openModal('<div class="ms-dialog"><div class="ms-dialog-title">Use the scroll?</div><div class="ms-dialog-body">' + iconHTML(c.icon) + ' <b>' + def.name + '</b><br>on ' + iconHTML(itemIconName(item)) + ' <b>' + item.name + '</b>' +
         (def.special === "goodness" ? '<br><span class="ms-dim">Success 60% &middot; each stat line +0 to +' + def.maxUp + ' &middot; ' + scrollSlotsRemaining(item) + ' slot' + (scrollSlotsRemaining(item) === 1 ? '' : 's') + ' left</span>' :
          def.special === "chaos" ? '<br><span class="ms-dim">Success 60% &middot; each stat line -5 to +5 &middot; ' + scrollSlotsRemaining(item) + ' slot' + (scrollSlotsRemaining(item) === 1 ? '' : 's') + ' left</span>' :
@@ -7975,7 +8000,9 @@
     var item = findItem(w.itemId); if(!item) return;
     if(action === "safeguard"){ w.safeguard = !!el.checked; w.res = null; renderStarWindow(); return; }
     if(action === "restore"){ var t = sfTraceFor(item); if(t){ sfRestore(item, t); w.res = { kind:"success", stars:item.stars }; } renderStarWindow(); renderLoadout(); return; }
-    if(action === "go"){ w.res = sfAttempt(item, w.safeguard); if(!sfCanSafeguard(item)) w.safeguard = false; renderStarWindow(); renderLoadout(); return; }
+    if(action === "go"){
+      if(item.locked && sfOdds(item, w.safeguard).destroy > 0){ msNotify(item.name + " is locked: unlock it before an enhancement that can destroy it."); return; }
+      w.res = sfAttempt(item, w.safeguard); if(!sfCanSafeguard(item)) w.safeguard = false; renderStarWindow(); renderLoadout(); return; }
   }
 
   /* ---- modal ---- */
@@ -7986,13 +8013,13 @@
   function attachInventoryEvents(){
     var grid = document.getElementById("inv-grid"), eq = document.getElementById("ms-equip"), tabs = document.getElementById("inv-tabs"), modal = document.getElementById("ms-modal");
     if(grid){
-      grid.addEventListener("click", function(e){ var cell = e.target.closest(".ms-cell"); if(cell) onInvCellClick(cell); });
-      grid.addEventListener("mouseover", function(e){ var cell = e.target.closest(".ms-cell[data-key]"); if(cell && (invHover !== cell.dataset.key || hoverEl !== cell)){ invHover = cell.dataset.key; hoverEl = cell; renderInvSide(); } });
+      grid.addEventListener("click", function(e){ var cell = e.target.closest(".ms-cell"); if(cell){ if(cell.dataset.key) invFocus = cell.dataset.key; onInvCellClick(cell); } });
+      grid.addEventListener("mouseover", function(e){ var cell = e.target.closest(".ms-cell[data-key]"); if(cell && (invHover !== cell.dataset.key || hoverEl !== cell)){ invHover = cell.dataset.key; invFocus = cell.dataset.key; hoverEl = cell; renderInvSide(); } });
       grid.addEventListener("mouseleave", hideInvTip);
     }
     if(eq){
-      eq.addEventListener("click", function(e){ var cell = e.target.closest(".eq-cell"); if(cell) onEquipCellClick(cell); });
-      eq.addEventListener("mouseover", function(e){ var cell = e.target.closest(".eq-cell[data-key]"); if(cell && (invHover !== cell.dataset.key || hoverEl !== cell)){ invHover = cell.dataset.key; renderEquipWindow(); hoverEl = document.querySelector('.eq-cell[data-key="' + cell.dataset.key + '"]') || cell; renderInvSide(); } });
+      eq.addEventListener("click", function(e){ var cell = e.target.closest(".eq-cell"); if(cell){ if(cell.dataset.key) invFocus = cell.dataset.key; onEquipCellClick(cell); } });
+      eq.addEventListener("mouseover", function(e){ var cell = e.target.closest(".eq-cell[data-key]"); if(cell && (invHover !== cell.dataset.key || hoverEl !== cell)){ invHover = cell.dataset.key; invFocus = cell.dataset.key; renderEquipWindow(); hoverEl = document.querySelector('.eq-cell[data-key="' + cell.dataset.key + '"]') || cell; renderInvSide(); } });
       eq.addEventListener("mouseleave", hideInvTip);
     }
     if(tabs) tabs.addEventListener("click", function(e){ var b = e.target.closest("[data-invtab]"); if(!b) return; invTab = b.dataset.invtab; invHover = null; renderInvWindow(); });
@@ -8000,10 +8027,24 @@
     if(status) status.addEventListener("click", function(){ if(carry) setCarry(null); });
     var sfb = document.getElementById("inv-sf-btn");
     if(sfb) sfb.addEventListener("click", function(){
-      var e = (carry && (carry.kind === "item" || carry.kind === "equipped")) ? carry : entryFor(invHover);
+      var e = (carry && (carry.kind === "item" || carry.kind === "equipped")) ? carry : (entryFor(invHover) || entryFor(invFocus));
       if(!e || !(e.kind === "item" || e.kind === "equipped") || !e.item){ msNotify("Pick up or hover a piece of gear, then press Enhance."); return; }
       if(carry) setCarry(null);
       openStarWindow(e.item.id);
+    });
+    /* the picked-up or hovered thing, for the Lock and Drop buttons */
+    function focusEntry(kinds){
+      var e = (carry && kinds.indexOf(carry.kind) !== -1) ? carry : (entryFor(invHover) || entryFor(invFocus));
+      return (e && kinds.indexOf(e.kind) !== -1 && e.item) ? e : null;
+    }
+    var lockb = document.getElementById("inv-lock-btn");
+    if(lockb) lockb.addEventListener("click", function(){
+      var e = focusEntry(["item", "equipped"]);
+      if(!e){ msNotify("Pick up or hover a piece of gear, then press Lock."); return; }
+      e.item.locked = !e.item.locked; persist();
+      if(carry) setCarry(null);
+      renderInvWindow(); renderEquipWindow(); renderShop();
+      msNotify(e.item.name + (e.item.locked ? " locked: it cannot be sold, dropped or destroyed." : " unlocked."));
     });
     var shop = document.getElementById("inv-shop-btn");
     if(shop) shop.addEventListener("click", function(){ var p = document.getElementById("stars-panel"); if(p){ p.style.display = p.style.display === "none" ? "" : "none"; renderStarsPanel(); } });
@@ -8013,7 +8054,7 @@
       state.inventory = state.inventory.filter(function(it){ return gear.indexOf(it) === -1; }).concat(gear); persist(); renderInvWindow(); msNotify("Sorted by level.");
     });
     if(modal) modal.addEventListener("change", function(e){ var sf = e.target.closest("[data-sf=safeguard]"); if(sf && sfWin) sfWindowAction("safeguard", sf); });
-    if(modal) modal.addEventListener("change", function(e){ var pk = e.target.closest("[data-protect]"); if(pk) protectPicks[pk.dataset.protect] = !!pk.checked; });
+    if(modal) modal.addEventListener("change", function(e){ var pk = e.target.closest("[data-protect]"); if(pk) protectPicks[pk.dataset.protect] = !!pk.checked; var sa = e.target.closest("[data-sa]"); if(sa) sellAllChange(sa); });
     if(modal){
       modal.addEventListener("click", function(e){
         var pick = e.target.closest("[data-pick]");
@@ -8148,7 +8189,8 @@
     combat.keys.s  = downNow ? 1 : 0;            /* held, exactly like ArrowDown - this is what lays her prone */
 
     if(upNow && !joy.upHeld){
-      if(tryPortal() || tryDoor() || tryMerchant() || tryBounty()){ joy.climbArmed = false; }
+      /* portals, doors and ropes only: NPCs are the Talk button's job (the Jump button becomes it beside them) */
+      if(tryPortal() || tryDoor()){ joy.climbArmed = false; }
       else { var rope = climbAlongside(); if(rope){ grabClimb(rope, false); joy.climbArmed = false; } }
     }
     joy.upHeld = upNow;
@@ -8211,13 +8253,53 @@
     }
   }
 
+  /* ---------------- Mobile: the Jump button becomes TALK beside an NPC ---------------- */
+  /* Nearest NPC first; with two in reach a small swap pill above the button cycles the target and the
+     button shows the chosen name. Leaving their side turns it back into Jump. */
+  var talk = { list:[], pick:0, key:"" };
+  function talkTarget(){ return talk.list.length ? talk.list[Math.min(talk.pick, talk.list.length - 1)] : null; }
+  function talkSwap(){ if(talk.list.length > 1){ talk.pick = (talk.pick + 1) % talk.list.length; talk.key = ""; updateTalkButton(); } }
+  function updateTalkButton(){
+    var btn = document.getElementById("jump-btn"); if(!btn) return;
+    var gv = document.getElementById("game-viewport"), winOpen = !!(gv && gv.classList.contains("gw-open"));
+    var list = (combat && combat.active && !hudEditing && !winOpen) ? nearbyNpcs() : [];
+    /* keep the picked NPC while the same people are around; a new set starts from the nearest */
+    var ids = list.map(function(n){ return n.id; }).join(",");
+    if(ids !== talk.list.map(function(n){ return n.id; }).join(",")){
+      var was = talkTarget(); talk.list = list;
+      talk.pick = was ? Math.max(0, ids.split(",").indexOf(was.id)) : 0;
+    }
+    var t = talkTarget(), key = t ? t.id + ":" + list.length : "";
+    if(key === talk.key) return;
+    talk.key = key;
+    var swap = document.getElementById("talk-swap");
+    if(!t){
+      btn.classList.remove("talk"); btn.innerHTML = "<span>JUMP</span>";
+      if(swap) swap.hidden = true;
+      return;
+    }
+    btn.classList.add("talk"); btn.innerHTML = '<span>TALK</span><small>' + t.name + '</small>';
+    if(!swap){
+      swap = document.createElement("button"); swap.type = "button"; swap.id = "talk-swap"; swap.className = "talk-swap";
+      document.body.appendChild(swap);
+      swap.addEventListener("pointerdown", function(ev){ ev.preventDefault(); ev.stopPropagation(); talkSwap(); });
+      swap.addEventListener("contextmenu", function(ev){ ev.preventDefault(); });
+    }
+    if(list.length > 1){
+      var other = list[(talk.pick + 1) % list.length];
+      swap.innerHTML = '&#8644; ' + other.name; swap.hidden = false;
+      var b = btn.getBoundingClientRect();
+      swap.style.left = (b.left + b.width / 2) + "px"; swap.style.top = (b.top - 8) + "px";
+    } else swap.hidden = true;
+  }
+
   function renderCombatControls(){
     var el = document.getElementById("controls-legend");
     if(!el) return;
     var cls = classDef();
     el.classList.add("mobile-hint");
     var mvsk = movementSkillFor(cls); var moveLabel = mvsk ? mvsk.name : "Move";
-    el.innerHTML = "Drag the left stick to move, flick up to jump (or grab a rope / ladder beside you), hold up or down to climb, push sideways to hop off, flick down to drop through &middot; " +
+    el.innerHTML = "Drag the left stick to move, flick up to enter a portal or grab a rope / ladder beside you, hold up or down to climb, push sideways to hop off, flick down to drop through &middot; Beside an NPC the Jump button becomes Talk &middot; " +
       "Hold any bubble to keep using it &mdash; bind a skill to the big bubble from the Skill Book &middot; " + moveLabel + " is a single tap &middot; numbered gold bubbles are your job skills";
     updateSkillBubbleLabels();
     renderJobSkillBubbles();
@@ -9418,7 +9500,7 @@ var VHSprite = (function(){
   function sellItems(ids){
     var total = 0, n = 0;
     ids.forEach(function(id){
-      var it = findItem(id); if(!it || isEquippedItem(it)) return;
+      var it = findItem(id); if(!it || isEquippedItem(it) || it.locked) return;
       total += sellPrice(it); n++;
       state.inventory = state.inventory.filter(function(x){ return x.id !== id; });
       delete shopChecked[id];
@@ -9427,6 +9509,48 @@ var VHSprite = (function(){
     state.resolve += total;
     persist(); renderAll(); renderShop();
     if(combat) spawnFloat(combat.x, combat.y - FLOAT_Y, "+" + fmtNum(total) + " Gold" + (n > 1 ? " (" + n + " items)" : ""), "#e7c667");
+  }
+  /* ---- Sell all: pick the properties of the gear to let go of, see what it comes to, then sell in one go ---- */
+  function sellAllFilters(){
+    if(!state.sellAll) state.sellAll = { rar:{ common:true, rare:true, unique:false, legendary:false }, maxLv:200, slots:"all", pot:false, stars:false, scrolled:false, otherClass:false };
+    return state.sellAll;
+  }
+  function gearCategory(it){ return WEAPON_SLOTS[it.slot] ? "weapon" : (/^(ring|trinket|face|belt|cape)/.test(it.slot) ? "accessory" : "armor"); }
+  function sellAllMatches(){
+    var f = sellAllFilters(), me = classDef().id;
+    return state.inventory.filter(function(it){
+      if(isEquippedItem(it) || it.locked || !it.slot || it.kind) return false;
+      if(!f.rar[it.rarity || "common"]) return false;
+      if((it.level || 0) > f.maxLv) return false;
+      if(f.slots !== "all" && gearCategory(it) !== f.slots) return false;
+      if(!f.pot && it.potential && it.potential.grade > 0) return false;
+      if(!f.stars && (it.stars || 0) > 0) return false;
+      if(!f.scrolled && (it.slotsUsed || 0) > 0) return false;
+      if(f.otherClass && (!it.classId || it.classId === me)) return false;
+      return true;
+    });
+  }
+  function renderSellAll(){
+    var f = sellAllFilters(), hits = sellAllMatches(), gold = hits.reduce(function(s, it){ return s + sellPrice(it); }, 0);
+    function ck(id, on, label){ return '<label class="sa-opt"><input type="checkbox" data-sa="' + id + '" ' + (on ? "checked" : "") + '> ' + label + '</label>'; }
+    var html = '<div class="ms-dialog sell-all"><div class="ms-dialog-title">Sell all&hellip;</div><div class="ms-dialog-body">' +
+      '<div class="sa-row"><b>Rarity</b>' + ["common","rare","unique","legendary"].map(function(r){ return ck("rar:" + r, f.rar[r], '<span style="color:' + RARITY_BY_ID[r].color + '">' + RARITY_BY_ID[r].label + '</span>'); }).join("") + '</div>' +
+      '<div class="sa-row"><b>Level</b><label class="sa-opt">up to Lv <input type="number" min="0" max="200" data-sa="maxLv" value="' + f.maxLv + '"></label></div>' +
+      '<div class="sa-row"><b>Type</b>' + [["all","Everything"],["weapon","Weapons"],["armor","Armour"],["accessory","Accessories"]].map(function(o){ return '<label class="sa-opt"><input type="radio" name="sa-slots" data-sa="slots:' + o[0] + '" ' + (f.slots === o[0] ? "checked" : "") + '> ' + o[1] + '</label>'; }).join("") + '</div>' +
+      '<div class="sa-row"><b>Include</b>' + ck("pot", f.pot, "gear with potential") + ck("stars", f.stars, "star-forced gear") + ck("scrolled", f.scrolled, "scrolled gear") + '</div>' +
+      '<div class="sa-row"><b>Class</b>' + ck("otherClass", f.otherClass, "only gear made for other classes") + '</div>' +
+      '<div class="sa-sum">' + (hits.length ? '<b>' + hits.length + '</b> item' + (hits.length === 1 ? '' : 's') + ' &middot; <b class="num">' + fmtNum(gold) + ' Gold</b>' : 'Nothing in the satchel matches.') + ' <span class="ms-dim">Equipped and locked gear is never sold.</span></div>' +
+      (hits.length ? '<div class="sa-list">' + hits.slice(0, 12).map(function(it){ var rar = RARITY_BY_ID[it.rarity] || RARITY_BY_ID.common; return '<span style="color:' + rar.color + '">' + it.name + ' <em>Lv' + (it.level || 0) + '</em></span>'; }).join("") + (hits.length > 12 ? '<span class="ms-dim">&hellip; and ' + (hits.length - 12) + ' more</span>' : '') + '</div>' : '') +
+      '</div><div class="ms-dialog-btns"><button type="button" class="action-btn" id="ms-yes" ' + (hits.length ? "" : "disabled") + '>Sell ' + hits.length + ' for ' + fmtNum(gold) + ' Gold</button><button type="button" class="action-btn" id="ms-no">Cancel</button></div></div>';
+    openModal(html, function(yes){ if(yes) sellItems(sellAllMatches().map(function(it){ return it.id; })); });
+  }
+  function sellAllChange(el){
+    var f = sellAllFilters(), k = el.dataset.sa;
+    if(k.indexOf("rar:") === 0) f.rar[k.slice(4)] = !!el.checked;
+    else if(k.indexOf("slots:") === 0){ if(el.checked) f.slots = k.slice(6); }
+    else if(k === "maxLv") f.maxLv = Math.max(0, Math.min(200, parseInt(el.value, 10) || 0));
+    else f[k] = !!el.checked;
+    persist(); renderSellAll();
   }
   function renderShop(){
     var el = document.getElementById("shop-body"); if(!el) return;
@@ -9441,13 +9565,15 @@ var VHSprite = (function(){
           '<span class="shop-price num">' + def.price + ' Gold</span><button type="button" class="ms-small" data-shop-buy="' + id + '" ' + (state.resolve < def.price || have >= def.max ? "disabled" : "") + '>Buy</button></div>';
       }).join("") + '</div>';
     } else {
-      var items = state.inventory.filter(function(it){ return !isEquippedItem(it); });
+      var items = state.inventory.filter(function(it){ return !isEquippedItem(it) && !it.locked; });
+      var lockedN = state.inventory.filter(function(it){ return !isEquippedItem(it) && it.locked; }).length;
       Object.keys(shopChecked).forEach(function(id){ if(!items.some(function(it){ return it.id === id; })) delete shopChecked[id]; });
       var picked = items.filter(function(it){ return shopChecked[it.id]; }), pickedGold = picked.reduce(function(s, it){ return s + sellPrice(it); }, 0);
       var gearOnly = items.filter(function(it){ return it.slot && !it.kind; }), gearGold = gearOnly.reduce(function(s, it){ return s + sellPrice(it); }, 0);
       html += '<div class="shop-bulk"><label><input type="checkbox" data-shop-checkall="1" ' + (items.length && picked.length === items.length ? "checked" : "") + '> All</label>' +
         '<button type="button" class="ms-small" data-shop-sell-checked="1" ' + (picked.length ? "" : "disabled") + '>Sell selected (' + picked.length + ') &middot; ' + fmtNum(pickedGold) + ' Gold</button>' +
-        '<button type="button" class="ms-small" data-shop-sell-gear="1" ' + (gearOnly.length ? "" : "disabled") + '>Sell all gear (' + gearOnly.length + ') &middot; ' + fmtNum(gearGold) + ' Gold</button></div>';
+        '<button type="button" class="ms-small" data-shop-sell-all="1" ' + (gearOnly.length ? "" : "disabled") + '>Sell all&hellip; (' + gearOnly.length + ' gear)</button>' +
+        (lockedN ? '<span class="shop-locked-note">&#128274; ' + lockedN + ' locked item' + (lockedN === 1 ? '' : 's') + ' kept back</span>' : '') + '</div>';
       html += items.length ? '<div class="shop-list">' + items.map(function(it){
         var rar = it.rarity ? RARITY_BY_ID[it.rarity] : null;
         var sub = it.kind === "stars" ? ("Throwing stars x" + it.count) : it.kind === "supply" ? ("Supply x" + it.count) : ((rar ? rar.label + " " : "") + SLOT_META[it.slot].name + " &middot; Lv " + (it.level || 0) + (it.potential && it.potential.grade ? " &middot; " + POTENTIAL_GRADES[it.potential.grade].label + " potential" : ""));
@@ -9752,6 +9878,18 @@ var VHSprite = (function(){
     toggleWindow("shop");
     return true;
   }
+  /* every NPC the Warden could talk to from where she stands, nearest first. The phone's Talk button and its
+     swap control read this; the keyboard's Up key still asks each NPC in turn. */
+  var TALK_RANGE = 120;
+  function nearbyNpcs(){
+    if(!combat || !combat.active || combat.climb || Math.abs(combat.y - GROUND_Y) >= 30) return [];
+    var list = [
+      { id:"merchant", name:"Odile", x:MERCHANT_X, open:function(){ toggleWindow("shop"); } },
+      { id:"bill", name:"Bill", x:BILL_X, open:function(){ toggleWindow("bounty"); } }
+    ].filter(function(n){ return Math.abs(combat.x - n.x) < TALK_RANGE; });
+    list.sort(function(a, b){ return Math.abs(combat.x - a.x) - Math.abs(combat.x - b.x); });
+    return list;
+  }
   function positionToken(id, x, y){
     var el = document.getElementById(id);
     if(!el) return;
@@ -9804,8 +9942,9 @@ var VHSprite = (function(){
   };
   var DMG_STYLE = {                              /* [top fill, bottom fill, outline] */
     normal:["#fff3a8","#ffb020","#4a2a06"], magic:["#d6f2ff","#59b8ff","#0f2f4f"], crit:["#ffd0dc","#ff3d6e","#4a0a2a"],
-    taken:["#ecd2ff","#b46bff","#2c0b4a"], miss:["#f4f6ff","#aeb6d0","#1c2030"]
+    taken:["#5b55e6","#2d2478","#0a0826"], miss:["#f4f6ff","#aeb6d0","#1c2030"]   /* hits on the Warden: dark blue-purple */
   };
+  var DMG_LIFT = 88, DMG_LIFT_TAKEN = 63;         /* arena units above the target's feet where the number stack starts: hits on monsters, hits on the Warden */
   var DMG_SCALE = 6;                             /* screen px per glyph pixel: a 7px digit stands 54px tall with its outline (about 1.9x the old text) */
   function drawDamageCanvas(text, kind){
     var st = DMG_STYLE[kind] || DMG_STYLE.normal, chars = text.split(""), gw = 5, gh = 7, gap = 1;
@@ -9831,10 +9970,10 @@ var VHSprite = (function(){
     var el = document.createElement("div");
     el.className = "dmgnum dmg-" + kind;
     el.style.left = (target.x / ARENA_W * 100) + "%";
-    el.style.top = ((target.y - FLOAT_Y - 4) / ARENA_H * 100) + "%";
+    el.style.top = ((target.y - (kind === "taken" ? DMG_LIFT_TAKEN : DMG_LIFT)) / ARENA_H * 100) + "%";
     el.style.setProperty("--stack", target.dmgStackN);
     var text = kind === "miss" ? "MISS" : String(Math.max(0, Math.round(amount)));
-    var cv = drawDamageCanvas(text, kind), sc = DMG_SCALE * (kind === "crit" ? 1.25 : (kind === "miss" ? 0.75 : 1));
+    var cv = drawDamageCanvas(text, kind), sc = DMG_SCALE * (kind === "crit" ? 1.25 : (kind === "miss" ? 0.75 : (kind === "taken" ? 0.5 : 1)));   /* damage taken reads at half size */
     cv.style.width = (cv.width * sc) + "px"; cv.style.height = (cv.height * sc) + "px";
     el.appendChild(cv);
     wrap.appendChild(el);
@@ -10453,6 +10592,21 @@ var VHSprite = (function(){
     if(!combat || !document.getElementById("world") || !loot.items || !loot.items.length){ loot.apply(); return; }
     loot.items.forEach(function(it, k){ var d = spawnItemDrop(m, it, ts, k); if(d) d.loot = loot; });
   }
+  /* an item from the satchel, put down at the Warden's feet: a fresh three-minute life, and it can be picked up
+     again like any other floor item. On the phone (pick-up on touch) it waits until she has stepped away once. */
+  function dropInventoryItem(id){
+    var it = findItem(id); if(!it || !combat || !document.getElementById("world")) return false;
+    if(it.locked || isEquippedItem(it)) return false;
+    state.inventory = state.inventory.filter(function(x){ return x.id !== id; });
+    persist(); renderAll();
+    var name = it.kind === "stars" ? (it.name + " x" + it.count) : it.kind === "supply" ? ((SUPPLY_DEFS[it.supply] || {}).name || it.name) + " x" + it.count : it.name;
+    var color = it.rarity && RARITY_BY_ID[it.rarity] ? RARITY_BY_ID[it.rarity].color : "#cbd5e1";
+    var entry = { icon: itemIconName(it), text: name, color: color, apply: function(){ state.inventory.push(it); persist(); renderAll(); } };
+    var d = spawnItemDrop({ x: combat.x, y: combat.y }, entry, performance.now(), 0);
+    if(!d) return false;
+    d.vy = -0.28; d.armed = false;
+    return true;
+  }
   /* kept for older callers: a chest becomes its items */
   function spawnChestDrop(m, loot, ts){ spawnItemDrops(m, loot, ts); }
   function removeDrop(i){ var d = drops[i]; if(d && d.el) d.el.remove(); drops.splice(i, 1); }
@@ -10478,7 +10632,8 @@ var VHSprite = (function(){
         if(ts - d.born > DROP_LIFE_MS){ removeDrop(i); continue; }
         /* the hover of a floor item: one screen pixel up, one down, at a walking pace */
         d.ico.style.transform = "translateY(" + Math.round(Math.sin((ts - d.landed) / 240)) + "px)";
-        if(LOOT_ON_TOUCH && standingOver(d) && ts - d.landed > 250) takeDrop(d, ts);
+        if(d.armed === false){ if(!standingOver(d)) d.armed = true; }
+        else if(LOOT_ON_TOUCH && standingOver(d) && ts - d.landed > 250) takeDrop(d, ts);
       } else if(d.state === "take"){
         var f = (ts - d.t0) / DROP_TAKE_MS;
         if(f >= 1){ removeDrop(i); continue; }
@@ -10747,6 +10902,8 @@ var VHSprite = (function(){
   function combatLoop(ts){
     if(!combat || !combat.active){ return; }
     pollJoystickActions();
+    updateTalkButton();
+
     var dt = Math.min(48, Math.max(0, ts - combat.lastTs));
     combat.lastTs = ts;
     var d = derived();
@@ -10991,8 +11148,17 @@ var VHSprite = (function(){
     });
     document.getElementById("game-viewport").addEventListener("click", function(e){
       var btn = e.target.closest("[data-close]");
-      if(!btn) return;
-      closeWindow(btn.dataset.close);
+      if(btn){ closeWindow(btn.dataset.close); return; }
+      /* MapleStory's drop: pick the thing up in the satchel, then click anywhere that is not a window or a control */
+      if(carry && (carry.kind === "item" || carry.kind === "stack") && !e.target.closest(".game-window, #ms-modal, .hud-bar, .hud-buttons, .touch-row, .job-skill-bubbles, .hud-overlay, .talk-swap, .minimap, .map-tabs, .controls-legend, header, footer")){
+        var c = carry, it = c.item;
+        if(it.locked){ msNotify(it.name + " is locked and cannot be dropped."); setCarry(null); return; }
+        if(!combat || !combat.active){ setCarry(null); return; }
+        openModal('<div class="ms-dialog"><div class="ms-dialog-title">Drop ' + c.name + '?</div><div class="ms-dialog-body">' + iconHTML(c.icon) + ' It will lie at your feet for three minutes, then vanish (leaving the map also loses it). Stand over it and press Pick Up to take it back.</div><div class="ms-dialog-btns"><button type="button" class="action-btn" id="ms-yes">Drop</button><button type="button" class="action-btn" id="ms-no">Keep</button></div></div>', function(yes){
+          setCarry(null);
+          if(yes){ if(dropInventoryItem(it.id)) msNotify(c.name + " dropped."); }
+        });
+      }
     });
     document.getElementById("win-skill").addEventListener("click", function(e){
       var tab = e.target.closest("[data-skilltab]");
@@ -11017,12 +11183,8 @@ var VHSprite = (function(){
         openModal('<div class="ms-dialog"><div class="ms-dialog-title">Sell ' + ids.length + ' item' + (ids.length === 1 ? '' : 's') + '?</div><div class="ms-dialog-body">Odile offers <b>' + fmtNum(sum) + ' Gold</b> for the selection. Sold items are gone for good.</div><div class="ms-dialog-btns"><button type="button" class="action-btn" id="ms-yes">Sell</button><button type="button" class="action-btn" id="ms-no">Keep</button></div></div>', function(yes){ if(yes) sellItems(ids); });
         return;
       }
-      var sg = e.target.closest("[data-shop-sell-gear]");
-      if(sg && !sg.disabled){
-        var gear = state.inventory.filter(function(it){ return !isEquippedItem(it) && it.slot && !it.kind; }), gsum = gear.reduce(function(s, it){ return s + sellPrice(it); }, 0);
-        openModal('<div class="ms-dialog"><div class="ms-dialog-title">Sell all gear in the satchel?</div><div class="ms-dialog-body">' + gear.length + ' piece' + (gear.length === 1 ? '' : 's') + ' of unequipped gear for <b>' + fmtNum(gsum) + ' Gold</b>. Equipped gear, stars and supplies stay. Sold items are gone for good.</div><div class="ms-dialog-btns"><button type="button" class="action-btn" id="ms-yes">Sell all</button><button type="button" class="action-btn" id="ms-no">Keep</button></div></div>', function(yes){ if(yes) sellItems(gear.map(function(it){ return it.id; })); });
-        return;
-      }
+      var sg = e.target.closest("[data-shop-sell-all]");
+      if(sg && !sg.disabled){ renderSellAll(); return; }
       var sb = e.target.closest("[data-shop-sell]");
       if(sb){
         var it = findItem(sb.dataset.shopSell); if(!it) return;
@@ -11089,7 +11251,10 @@ var VHSprite = (function(){
     if(jumpBtn){
       jumpBtn.addEventListener("pointerdown", function(ev){
         ev.preventDefault();
-        if(combat && combat.active) doJump();     /* prone + Jump drops through; otherwise it is an ordinary jump */
+        if(!combat || !combat.active) return;
+        var t = talkTarget();
+        if(t){ t.open(); return; }                /* beside an NPC the button is TALK */
+        doJump();                                 /* prone + Jump drops through; otherwise it is an ordinary jump */
       });
       jumpBtn.addEventListener("contextmenu", function(ev){ ev.preventDefault(); });
     }
@@ -12476,7 +12641,23 @@ var VHSprite = (function(){
     });
 
     return wait(2500).then(function(){
-      step("pickup", function(){ var idle = 0, picked = 0; drops.slice().forEach(function(d){ if(d.state !== "idle") return; idle++; combat.x = d.x; combat.y = d.y; combat.onGround = true; combat.climb = null; if(tryPickUp(performance.now())) picked++; }); return { onFloor: idle, pickedUp: picked }; });
+      step("pickup", function(){
+        /* on the phone, standing on a drop takes it by itself, so count what was scooped up before this step too */
+        var spawned = (report.steps.fight && report.steps.fight.dropsSpawned) || 0, autoTaken = Math.max(0, spawned - drops.length);
+        var idle = 0, picked = 0; drops.slice().forEach(function(d){ if(d.state !== "idle") return; idle++; combat.x = d.x; combat.y = d.y; combat.onGround = true; combat.climb = null; if(tryPickUp(performance.now())) picked++; });
+        return { spawned: spawned, autoTaken: autoTaken, onFloor: idle, pickedUp: picked }; });
+      step("satchel", function(){
+        /* lock, drop and sell-all: the satchel rules a player relies on */
+        var it = rollItem("helmet", 20, 30, "fighter"); state.inventory.push(it); it.locked = true;
+        var before = state.inventory.length; sellItems([it.id]); var lockedKept = state.inventory.length === before && !!findItem(it.id);
+        var lockedDropRefused = dropInventoryItem(it.id) === false;
+        it.locked = false; var n0 = drops.length; var dropped = dropInventoryItem(it.id) && drops.length === n0 + 1 && !findItem(it.id);
+        var d = drops[drops.length - 1]; d.state = "idle"; d.landed = performance.now() - 1000; combat.x = d.x; combat.y = d.y; combat.onGround = true; combat.climb = null;
+        var back = tryPickUp(performance.now()) && !!findItem(it.id);
+        var sa = sellAllMatches(); var sellAllOk = Array.isArray(sa) && !sa.some(function(x){ return x.locked || isEquippedItem(x); });
+        state.inventory = state.inventory.filter(function(x){ return x.id !== it.id; });
+        combat.x = 150; combat.y = GROUND_Y; var talk = nearbyNpcs().map(function(n){ return n.name; });
+        return { lockedKept: lockedKept, lockedDropRefused: lockedDropRefused, dropped: !!dropped, pickedBackUp: !!back, sellAllOk: sellAllOk, npcsBesideTheHall: talk }; });
       step("loot", function(){ var bad = 0, n = 0; MAPS.forEach(function(mp){ (mp.roster || []).forEach(function(t){ var m = { x: 500, y: GROUND_Y, level: (mp.levels || {})[t] || 1, type: t, state: "alive" }; for(var k = 0; k < 4; k++){ var L = rollMonsterLoot(m); n++; L.items.forEach(function(it){ if(!it.icon || ICON_IDX[it.icon] === undefined) bad++; }); } }); }); return { rolls: n, itemsWithoutIcon: bad }; });
       step("gear", function(){ var bad = [], n = 0; CLASSES.forEach(function(c){ [1, 30, 70, 120, 200].forEach(function(L){ SLOT_IDS.forEach(function(sl){ var it = rollItem(sl, L, 30, c); n++; if(!it.name) bad.push(c + "/" + sl + " has no name"); Object.keys(it.stats).forEach(function(s){ var v = it.stats[s]; if(!(v >= 0) || v !== Math.round(v)) bad.push(c + " Lv" + L + " " + sl + " " + s + "=" + v); }); }); }); }); return { rolled: n, bad: bad.slice(0, 10) }; });
       step("stats", function(){ var bad = []; CLASSES.forEach(function(c){ state.custom.charClass = c; var d = derived(); Object.keys(d).forEach(function(k){ if(typeof d[k] === "number" && !isFinite(d[k])) bad.push(c + "." + k); }); }); state.custom.charClass = "fighter"; return { bad: bad }; });
@@ -12500,7 +12681,8 @@ var VHSprite = (function(){
       var s = report.steps, m = s.maps || {};
       var problems = [].concat(report.errors, report.pageErrors, m.mapErrors || [], m.unreachablePlatforms || [], m.portalOffFoothold || [], m.portalOneWay || [], m.looseLadders || [], m.monstersMidair || [], m.floatingProps || [], m.unknownMonsters || [], m.missingArt || [], m.emptyMaps || [], (s.gear && s.gear.bad) || [], (s.stats && s.stats.bad) || [], (s.skills && s.skills.errors) || []);
       if(s.loot && s.loot.itemsWithoutIcon) problems.push(s.loot.itemsWithoutIcon + " dropped items have no picture");
-      if(s.pickup && s.pickup.onFloor && !s.pickup.pickedUp) problems.push("items on the floor could not be picked up");
+      if(s.pickup && s.pickup.spawned && !s.pickup.pickedUp && !s.pickup.autoTaken) problems.push("dropped items could not be picked up");
+      if(s.satchel){ if(!s.satchel.lockedKept) problems.push("a locked item was sold"); if(!s.satchel.lockedDropRefused) problems.push("a locked item could be dropped"); if(!s.satchel.dropped) problems.push("dropping an item from the satchel failed"); if(!s.satchel.pickedBackUp) problems.push("a dropped item could not be picked back up"); if(!s.satchel.sellAllOk) problems.push("Sell all would include locked or equipped gear"); if(s.satchel.npcsBesideTheHall.length < 2) problems.push("the Talk button does not see both NPCs at the start of a map"); }
       if(s.levelCap && s.levelCap.reached !== MAX_LEVEL) problems.push("level cap reached " + s.levelCap.reached + " instead of " + MAX_LEVEL);
       if(s.saveRoundTrip && !s.saveRoundTrip.ok) problems.push("a save did not survive a round trip");
       report.problems = problems; report.healthy = problems.length === 0;
@@ -12515,7 +12697,7 @@ var VHSprite = (function(){
 <script>
 /* installable app: register the service worker for offline play, check for a new build on every launch, and reload
    once when a new build takes over so the update shows without a second launch */
-var VH_BUILD = "v34 · Sep 23";
+var VH_BUILD = "v35 · Sep 23";
 if("serviceWorker" in navigator){
   window.addEventListener("load", function(){
     var reloaded = false;

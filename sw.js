@@ -1,7 +1,7 @@
 /* Vigil Hall service worker: the whole game is one page, so cache the shell and serve it offline.
    The page itself is fetched from the network first (so a new upload shows on the very next launch) and served from the
    cache only when offline; icons and the manifest are cache first. Bump CACHE with every upload. */
-var CACHE = "vigil-hall-v7";
+var CACHE = "vigil-hall-v8";
 var SHELL = ["./", "./index.html", "./manifest.webmanifest", "./icons/icon-192.png", "./icons/icon-512.png", "./icons/icon-maskable-512.png", "./icons/apple-touch-icon.png"];
 self.addEventListener("install", function(e){
   e.waitUntil(caches.open(CACHE).then(function(c){ return c.addAll(SHELL); }).then(function(){ return self.skipWaiting(); }));
