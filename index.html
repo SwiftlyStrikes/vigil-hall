@@ -5518,7 +5518,6 @@
     var inv = st.inventory, cls = st.custom && st.custom.charClass;
     function add(id, n){ inv.push(makeSupply(id, n)); }
     add("shell", 30); add("rock", 5); add("magicrock", 2);
-    inv.push(makeStackItem("potion", "rose", 30)); inv.push(makeStackItem("potion", "bluebell", 15));   /* v41: a first-aid kit */
     if(cls === "ranger"){ add("arrow", 1000); add("bolt", 1000); }
     if(cls === "gunslinger") add("bullet", 1000);
   }
@@ -11140,6 +11139,7 @@ var VHSprite = (function(){
   function switchMap(idx, fromId){
     if(idx === (state.mapIdx || 0)) return;
     state.mapIdx = idx; state.mapId = MAPS[idx].id;
+    if(typeof closeWindow === "function") closeWindow("npc");   /* v41: an NPC's window does not follow you to another map */
     state.visited = state.visited || {}; state.visited[MAPS[idx].id] = true;
     persist();
     /* arriving through a portal puts you on the portal that leads back; anything else starts at the west end */
@@ -11490,7 +11490,7 @@ var VHSprite = (function(){
   function updateBossBar(){
     var arena = document.getElementById("arena"); if(!arena) return;
     var bar = document.getElementById("boss-bar");
-    var boss = combat && combat.active ? combat.enemies.filter(function(m){ return m.boss && m.state === "alive"; })[0] : null;
+    var boss = combat && combat.active ? combat.enemies.filter(function(m){ return m.boss && m.state === "alive"; }).sort(function(a, b){ return (a.elite ? 1 : 0) - (b.elite ? 1 : 0); })[0] : null;
     if(!boss){ if(bar) bar.remove(); return; }
     if(!bar){ bar = document.createElement("div"); bar.id = "boss-bar"; bar.innerHTML = '<div class="bb-name"></div><div class="bb-track"><i></i></div>'; arena.appendChild(bar); }
     var nm = bar.querySelector(".bb-name"), fill = bar.querySelector(".bb-track i");
@@ -11519,11 +11519,14 @@ var VHSprite = (function(){
   function canSell(it){ return !!it && !isEquippedItem(it) && !it.locked && !it.quest; }
   /* v41: sell part of a stack (potions, trophies, supplies, a set of stars): the price is the stack's per-unit price */
   function unitSellPrice(it){ return it && it.count ? sellPrice(it) / it.count : 0; }
+  /* what n of a stack fetch: the whole stack's price less what the rest would fetch, so selling one at a time never pays
+     more than selling the lot (cheap ammo would otherwise round every single sale up to a gold) */
+  function partSellPrice(it, n){ if(n >= it.count) return sellPrice(it); var rest = Object.assign({}, it, { count: it.count - n }); return Math.max(0, sellPrice(it) - sellPrice(rest)); }
   function sellStackPart(id, n){
     var it = findItem(id); if(!canSell(it) || !isStackKind(it.kind)) return 0;
     n = Math.max(0, Math.min(it.count, Math.floor(n))); if(!n) return 0;
     if(n >= it.count){ sellItems([id]); return n; }
-    var gold = Math.max(1, Math.floor(unitSellPrice(it) * n));
+    var gold = partSellPrice(it, n);
     it.count -= n; state.resolve += gold; if(it.kind === "stars") starsDirty = true;
     persist(); renderAll(); renderShop();
     if(combat) spawnFloat(combat.x, combat.y - FLOAT_Y, "+" + fmtNum(gold) + " Gold (" + n + " " + it.name + ")", "#e7c667");
@@ -11550,7 +11553,7 @@ var VHSprite = (function(){
     if(!canSell(it)) return;
     if(it.count <= 1){ sellItems([it.id]); return; }
     openQtyDialog({ title:"Sell how many " + it.name + "?", icon:itemIconName(it), max:it.count, verb:"Sell",
-      sum:function(n){ return n + ' &times; ' + it.name + ' &rarr; <b class="num">' + fmtNum(n >= it.count ? sellPrice(it) : Math.max(1, Math.floor(unitSellPrice(it) * n))) + ' Gold</b>' + (n < it.count ? ' <span class="ms-dim">(' + (it.count - n) + ' kept)</span>' : ''); },
+      sum:function(n){ return n + ' &times; ' + it.name + ' &rarr; <b class="num">' + fmtNum(partSellPrice(it, n)) + ' Gold</b>' + (n < it.count ? ' <span class="ms-dim">(' + (it.count - n) + ' kept)</span>' : ''); },
       done:function(n){ sellStackPart(it.id, n); } });
   }
   /* what Odile stocks where you stand: the supplies everywhere, the era's potions by region (the first towns sell the
@@ -12734,7 +12737,11 @@ var VHSprite = (function(){
     if(it.quest) return false;
     var name = it.kind === "stars" ? (it.name + " x" + it.count) : it.kind === "supply" ? ((SUPPLY_DEFS[it.supply] || {}).name || it.name) + " x" + it.count : (it.kind === "potion" || it.kind === "etc") ? it.name + " x" + it.count : it.name;
     var color = it.rarity && RARITY_BY_ID[it.rarity] ? RARITY_BY_ID[it.rarity].color : "#cbd5e1";
-    var entry = { icon: itemIconName(it), text: name, color: color, apply: function(){ state.inventory.push(it); persist(); renderAll(); } };
+    var entry = { icon: itemIconName(it), text: name, color: color, apply: function(){
+      if(it.kind === "potion" || it.kind === "etc") addStack(it.kind, it.ref, it.count);      /* back into the stack that may have formed meanwhile */
+      else if(it.kind === "supply") addSupply(it.supply, it.count);
+      else state.inventory.push(it);
+      persist(); renderAll(); } };
     var d = spawnItemDrop({ x: combat.x, y: combat.y }, entry, performance.now(), 0);
     if(!d) return false;
     d.vy = -0.28; d.armed = false;
@@ -13335,7 +13342,7 @@ var VHSprite = (function(){
       /* where to: an item to fetch, else the place behind the Warden */
       if(training){
         if(live.fetch && (live.fetch.state !== "idle" || drops.indexOf(live.fetch) === -1)) live.fetch = null;
-        if(!live.fetch || ts - (live.fetchAt || 0) > 400){ live.fetchAt = ts; var f = petFetchTarget(live, item, ts); if(f){ live.fetch = f; f.fetcher = live.id; } }
+        if(!live.fetch || ts - (live.fetchAt || 0) > 400){ live.fetchAt = ts; var f = petFetchTarget(live, item, ts); live.fetch = f; if(f) f.fetcher = live.id; }
       } else live.fetch = null;
       var tx = live.fetch ? live.fetch.x : combat.x - dir * 85 * (k + 1), ty = live.fetch ? live.fetch.y : (combat.onGround ? combat.y : live.y);
       var dx = tx - live.x, ad = Math.abs(dx), moving = false;
@@ -17269,8 +17276,10 @@ var VHSprite = (function(){
   function questStatus(q){
     var r = qrec(q.id);
     if(r && r.st === "active") return questReady(q) ? "ready" : "active";
+    var levelOk = state.level >= q.lv[0] && !(q.lv[1] && state.level > q.lv[1]);
     if(r && r.st === "done"){
       if(q.repeat == null && !q.exchange) return "done";
+      if(!levelOk) return "locked";
       if(q.exchange) return "available";
       var wait = (r.at || 0) + q.repeat * 3600000 - Date.now();
       return wait > 0 ? "cooldown" : "available";
@@ -17322,9 +17331,11 @@ var VHSprite = (function(){
     var q = QUEST_BY_ID[id], r = qrec(id); if(!q || !r || r.st !== "active") return;
     if(r.done) { r.st = "done"; } else delete state.quests[id];
     /* quest items only mean something to their quest: they go when it does */
-    q.collect.forEach(function(c){ if(c[0].indexOf("qi:") === 0 && !questsWanting(c[0]).length){ var s = stackOf("etc", c[0]); if(s) state.inventory = state.inventory.filter(function(x){ return x !== s; }); } });
+    pruneQuestItems();
     persist(); renderQuestUi(); renderAll();
   }
+  /* a quest item no active quest wants is thrown away (they can't be sold or dropped, so a leftover would be stuck) */
+  function pruneQuestItems(){ state.inventory = state.inventory.filter(function(it){ return !(it.kind === "etc" && it.quest && !questsWanting(it.ref).length); }); }
   function questsWanting(ref){ return QUESTS.filter(function(q){ var r = qrec(q.id); return r && r.st === "active" && q.collect.some(function(c){ return c[0] === ref; }); }); }
 
   /* ---- rewards ---- */
@@ -17370,6 +17381,9 @@ var VHSprite = (function(){
     var q = QUEST_BY_ID[id], r = qrec(id); if(!q || !r || r.st !== "active" || !questReady(q)) return false;
     var rw = q.reward || {};
     if(rw.choose && (choice == null || !rw.choose[choice])){ msNotifyQuest("Choose your reward first."); return false; }
+    var lockedNeed = q.collect.map(function(c){ var p = c[0].indexOf(":"), kind = c[0].slice(0, p), cid = c[0].slice(p + 1);
+      var s = kind === "etc" ? stackOf("etc", ETC_OF_TYPE[cid]) : kind === "potion" ? stackOf("potion", cid) : kind === "supply" ? supplyStack(cid) : null; return s && s.locked ? s.name : null; }).filter(Boolean);
+    if(lockedNeed.length){ msNotifyQuest("Unlock " + lockedNeed.join(", ") + " first: locked items are never handed over."); return false; }
     q.collect.forEach(function(c){
       var p = c[0].indexOf(":"), kind = c[0].slice(0, p), cid = c[0].slice(p + 1);
       if(kind === "etc") takeStack("etc", ETC_OF_TYPE[cid], c[1]);
@@ -17385,6 +17399,7 @@ var VHSprite = (function(){
     if(rw.fame){ state.fame = (state.fame || 0) + rw.fame; got.push("Fame +" + rw.fame); }
     if(rw.exp) gainXP(rw.exp);
     r.st = "done"; r.done = true; r.at = Date.now(); r.n = (r.n || 0) + 1; r.kills = {};
+    pruneQuestItems();
     persist(); renderAll(); renderQuestUi();
     questFloat("Quest complete!", "#ffe9ad", 60);
     if(rw.exp) questFloat("EXP +" + fmtNum(rw.exp), "#a3e635", 38);
@@ -17399,8 +17414,8 @@ var VHSprite = (function(){
   }
   function doExchange(qid, itemId){
     var q = QUEST_BY_ID[qid], it = findItem(itemId); if(!q || !q.exchange || !it) return;
-    if(exchangeOptions(q).indexOf(it) === -1) return;
-    takeStack("etc", it.ref, q.exchange.per);
+    if(questStatus(q) === "locked" || exchangeOptions(q).indexOf(it) === -1 || it.count < q.exchange.per) return;
+    it.count -= q.exchange.per; if(it.count <= 0) state.inventory = state.inventory.filter(function(x){ return x !== it; });
     var got = pickWeighted(q.reward.weighted).map(function(x){ return grantReward(x); });
     gainXP(q.exchange.exp);
     var r = qrec(qid) || (state.quests[qid] = { st:"done", done:true, n:0 }); r.n = (r.n || 0) + 1; r.at = Date.now();
@@ -17415,13 +17430,14 @@ var VHSprite = (function(){
     var mapId = currentMap().id, key = m.elite ? "elite:" + m.elite : m.type, changed = false;
     QUESTS.forEach(function(q){
       var r = qrec(q.id); if(!r || r.st !== "active") return;
+      var hit = false;
       q.kill.forEach(function(k){
         if(k[0] !== key || k[1] !== mapId) return;
         r.kills = r.kills || {}; var kk = questKillKey(k), n = r.kills[kk] || 0; if(n >= k[2]) return;
-        r.kills[kk] = n + 1; changed = true;
+        r.kills[kk] = n + 1; changed = true; hit = true;
         if(n + 1 === k[2]) questFloat(killName(k[0]) + " " + k[2] + " / " + k[2], "#f2d16b", 70);
       });
-      if(changed && questReady(q) && !r.toldReady){ r.toldReady = true; questFloat(q.name + ": complete! See " + QUEST_NPCS[q.npc].name, "#f2d16b", 96); }
+      if(hit && questReady(q) && !r.toldReady){ r.toldReady = true; questFloat(q.name + ": complete! See " + QUEST_NPCS[q.npc].name, "#f2d16b", 96); }
     });
     if(changed) renderQuestTracker();
   }
@@ -17431,16 +17447,17 @@ var VHSprite = (function(){
     Object.keys(VH_QUESTS.qitems).forEach(function(k){
       var ref = "qi:" + k, wanting = questsWanting(ref); if(!wanting.length) return;
       var need = Math.max.apply(null, wanting.map(function(q){ return q.collect.filter(function(c){ return c[0] === ref; })[0][1]; }));
-      if(stackCount("etc", ref) >= need) return;
+      var qname = VH_QUESTS.qitems[k].name, onFloor = drops.filter(function(d){ return d.state !== "take" && d.item && d.item.text === qname; }).length;   /* dropped but not yet picked up */
+      if(stackCount("etc", ref) + onFloor >= need) return;
       VH_QUESTS.qitems[k].from.forEach(function(f){
         if(f[0] !== key || f[1] !== mapId || Math.random() >= f[2]) return;
-        give(function(){ addStack("etc", ref, 1); renderQuestTracker(); }, VH_QUESTS.qitems[k].name, "#f2d16b", VH_QUESTS.qitems[k].icon);
+        give(function(){ if(questsWanting(ref).length) addStack("etc", ref, 1); renderQuestTracker(); }, VH_QUESTS.qitems[k].name, "#f2d16b", VH_QUESTS.qitems[k].icon);
       });
     });
   }
 
   /* ---- NPCs in the towns ---- */
-  var questNpcMap = null, questTalking = null, questPicked = null, questChoice = null;
+  var questNpcMap = null, questTalking = null, questPicked = null, npcPicked = null, questChoice = null;
   function npcQuests(npcId){ return QUESTS.filter(function(q){ return q.npc === npcId; }); }
   function npcMark(npcId){
     var sts = npcQuests(npcId).map(function(q){ var st = questStatus(q); return (q.exchange && st === "available" && !exchangeOptions(q).length) ? "" : st; });
@@ -17499,7 +17516,7 @@ var VHSprite = (function(){
   function openQuestNpc(id){
     questTalking = id; questChoice = null;
     var qs = npcQuests(id), ready = qs.filter(function(q){ return questStatus(q) === "ready"; })[0], avail = qs.filter(function(q){ return questStatus(q) === "available"; })[0];
-    questPicked = (ready || avail || qs.filter(function(q){ return questStatus(q) === "active"; })[0] || qs[0]).id;
+    npcPicked = (ready || avail || qs.filter(function(q){ return questStatus(q) === "active"; })[0] || qs[0]).id;
     var w = document.getElementById("win-npc"); if(w && !w.classList.contains("open")) toggleWindow("npc"); else renderQuestNpcWindow();
   }
 
@@ -17568,9 +17585,9 @@ var VHSprite = (function(){
     var el = document.getElementById("npc-body"); if(!el || !questTalking) return;
     var n = QUEST_NPCS[questTalking], qs = npcQuests(questTalking), t = document.getElementById("npc-title");
     if(t) t.textContent = n.name + " · " + n.title;
-    var q = QUEST_BY_ID[questPicked] || qs[0];
+    var q = QUEST_BY_ID[npcPicked]; if(!q || q.npc !== questTalking) q = qs[0];
     el.innerHTML = '<div class="shop-head"><div class="shop-portrait">' + questNpcSVG(questTalking) + '</div><div class="shop-talk"><b>' + n.name + '</b><span>' + n.title + ' of ' + mapName(n.town) + '</span></div></div>' +
-      '<div class="q-split"><div class="q-list">' + qs.map(function(x){ var st = questStatus(x); return '<button type="button" class="q-item st-' + st + (x === q ? " on" : "") + '" data-qpick="' + x.id + '"><span class="q-dot"></span>' + x.name + '<small>' + QUEST_ST_LABEL[st] + '</small></button>'; }).join("") + '</div>' +
+      '<div class="q-split"><div class="q-list">' + qs.map(function(x){ var st = questStatus(x); return '<button type="button" class="q-item st-' + st + (x === q ? " on" : "") + '" data-npcpick="' + x.id + '"><span class="q-dot"></span>' + x.name + '<small>' + QUEST_ST_LABEL[st] + '</small></button>'; }).join("") + '</div>' +
       '<div class="q-detail">' + questDetailHTML(q, true) + '</div></div><div class="ms-status" id="npc-status"></div>';
   }
   var questLogTab = "active";
@@ -17613,12 +17630,14 @@ var VHSprite = (function(){
       var el = document.getElementById(bid); if(!el) return;
       el.addEventListener("click", function(e){
         var b;
-        if((b = e.target.closest("[data-qpick]"))){ questPicked = b.dataset.qpick; questChoice = null; renderQuestUi(); return; }
+        if((b = e.target.closest("[data-qpick]"))){ questPicked = b.dataset.qpick; renderQuestLog(); return; }
+        if((b = e.target.closest("[data-npcpick]"))){ npcPicked = b.dataset.npcpick; questChoice = null; renderQuestNpcWindow(); return; }
+        var atNpc = bid === "npc-body" && questTalking && npcsHere().indexOf(questTalking) !== -1;
         if((b = e.target.closest("[data-qtab]"))){ questLogTab = b.dataset.qtab; questPicked = null; renderQuestLog(); return; }
-        if((b = e.target.closest("[data-qaccept]"))){ acceptQuest(b.dataset.qaccept); return; }
-        if((b = e.target.closest("[data-qcomplete]"))){ completeQuest(b.dataset.qcomplete, questChoice); return; }
+        if((b = e.target.closest("[data-qaccept]"))){ if(atNpc && QUEST_BY_ID[b.dataset.qaccept].npc === questTalking) acceptQuest(b.dataset.qaccept); return; }
+        if((b = e.target.closest("[data-qcomplete]"))){ if(atNpc && QUEST_BY_ID[b.dataset.qcomplete].npc === questTalking) completeQuest(b.dataset.qcomplete, questChoice); return; }
         if((b = e.target.closest("[data-qforfeit]"))){ var fq = QUEST_BY_ID[b.dataset.qforfeit]; openModal('<div class="ms-dialog"><div class="ms-dialog-title">Forfeit quest?</div><div class="ms-dialog-body">Give up <b>' + fq.name + '</b>? Progress is lost and its quest items are thrown away.</div><div class="ms-dialog-btns"><button type="button" class="action-btn" id="ms-yes">Forfeit</button><button type="button" class="action-btn" id="ms-no">Keep it</button></div></div>', function(y){ if(y) forfeitQuest(fq.id); }); return; }
-        if((b = e.target.closest("[data-qexchange]"))){ doExchange(questPicked, b.dataset.qexchange); return; }
+        if((b = e.target.closest("[data-qexchange]"))){ if(atNpc && npcPicked && QUEST_BY_ID[npcPicked].npc === questTalking) doExchange(npcPicked, b.dataset.qexchange); return; }
       });
       el.addEventListener("change", function(e){ var r = e.target.closest("[data-qchoose]"); if(r){ questChoice = Number(r.dataset.qchoose); renderQuestNpcWindow(); } });
     });
@@ -17658,10 +17677,13 @@ var VHSprite = (function(){
       if(!drinkPotion(id, live) && ts - autoPotOutHint[which] > 8000){ autoPotOutHint[which] = ts; spawnFloat(live.x, live.y - 40, "Out of " + POTION_DEFS[id].name, "#8e9ac0"); }
     });
   }
-  var petWinSel = 0;
+  var petWinSel = 0, petSliderHeld = false;
+  document.addEventListener("pointerdown", function(e){ if(e.target && e.target.matches && e.target.matches("#pet-body input[type=range]")) petSliderHeld = true; });
+  document.addEventListener("pointerup", function(){ if(petSliderHeld){ petSliderHeld = false; setTimeout(renderPetWindow, 0); } });
   function renderPetWindow(){
     var el = document.getElementById("pet-body"); if(!el) return;
     var w = document.getElementById("win-pet"); if(!w || !w.classList.contains("open")) return;
+    var act = document.activeElement; if(act && act.matches && act.matches("#pet-body input[type=range]") && petSliderHeld) return;   /* mid-drag: don't rebuild the slider */
     var slots = petSlots(), ap = autoPotCfg(), training = petTrainingOn();
     var sel = slots[petWinSel] ? findItem(slots[petWinSel]) : null;
     var html = '<div class="pw-slots">' + [0, 1, 2].map(function(k){
@@ -17950,6 +17972,7 @@ var VHSprite = (function(){
     window.addEventListener("keydown", function(e){
       var code = normKeyCode(e);
       if(!code) return;
+      if(e.target && e.target.closest && e.target.closest("input, textarea, select") && code !== "Escape") return;   /* v41: typing in a quantity box */
       var keysOpen = document.getElementById("win-keys") && document.getElementById("win-keys").classList.contains("open");
       if(keysOpen && keySel){                         /* assigning: the next key pressed takes the chosen function */
         e.preventDefault();
@@ -18251,6 +18274,7 @@ var VHSprite = (function(){
       state.inventory = weapons.concat([starterChest, starterTrinket]);
       if(startCls.id === "assassin") state.inventory.unshift(rollStars(0, true));   /* a full set of level-0 stars for the claw */
       seedSupplies(state);
+      addStack("potion", "rose", 30); addStack("potion", "bluebell", 15);   /* v41: a new Warden's first-aid kit (only here, never on a reload) */
       state.equipped = { helmet:null, face:null, chest:starterChest.id, bottom:null, greaves:null, belt:null,
         primaryWeapon:starterWeapon.id, secondaryWeapon:null, ring1:null, ring2:null, ring3:null, ring4:null,
         trinket:starterTrinket.id, earring:null };
@@ -19378,12 +19402,12 @@ var VHSprite = (function(){
         for(var k = 0; k < 10; k++) questOnKill({ type:"skitterling", elite:null });
         var roses = stackCount("potion", "rose"), questOk = questStatus(QUEST_BY_ID.firstlight) === "ready" && completeQuest("firstlight") && stackCount("potion", "rose") === roses + 20 && questStatus(QUEST_BY_ID.firstlight) === "done";
         /* sell part of a stack; locked stars are never sold or dropped */
-        addStack("potion", "amber", 10); var am = stackOf("potion", "amber"), g0 = state.resolve; sellStackPart(am.id, 4); var partSold = stackCount("potion", "amber") === 6 && state.resolve > g0;
+        var am0 = stackCount("potion", "amber"); addStack("potion", "amber", 10); var am = stackOf("potion", "amber"), g0 = state.resolve; sellStackPart(am.id, 4); var partSold = stackCount("potion", "amber") === am0 + 6 && state.resolve > g0;   /* any Amberroot already picked up counts */
         var st = rollStars(10, true); state.inventory.push(st); st.locked = true; sellItems([st.id]); sellStackPart(st.id, 5); var starsKept = !!findItem(st.id) && st.count === st.max && dropInventoryItem(st.id) === false;
         /* a pet drinks for you */
         var pet = makePet("cat"); state.inventory.push(pet); petSendOut(pet, 0); state.autoPot = { hp:"moon", hpPct:50, mp:null, mpPct:30 }; addStack("potion", "moon", 3);
         combat.hp = Math.round(combat.hpMax * 0.2); var m0 = stackCount("potion", "moon"); petAutoPot(performance.now() + 60000); var petDrank = stackCount("potion", "moon") === m0 - 1;
-        petCallBack(0);
+        petCallBack(0); autoPotAt = { hp:0, mp:0 };
         return { quests: QUESTS.length, elites: Object.keys(QUEST_ELITES).length, badData: bad.slice(0, 10), iconsMissing: noIcon, drank: drank, questFlow: !!questOk, partSold: partSold, lockedStarsKept: starsKept, petDrank: petDrank };
       });
       step("loot", function(){ var bad = 0, n = 0; MAPS.forEach(function(mp){ (mp.roster || []).forEach(function(t){ var m = { x: 500, y: GROUND_Y, level: (mp.levels || {})[t] || 1, type: t, state: "alive" }; for(var k = 0; k < 4; k++){ var L = rollMonsterLoot(m); n++; L.items.forEach(function(it){ if(!it.icon || ICON_IDX[it.icon] === undefined) bad++; }); } }); }); return { rolls: n, itemsWithoutIcon: bad }; });
@@ -19428,7 +19452,7 @@ var VHSprite = (function(){
 <script>
 /* installable app: register the service worker for offline play, check for a new build on every launch, and reload
    once when a new build takes over so the update shows without a second launch */
-var VH_BUILD = "v41 · Sep 24";
+var VH_BUILD = "v41.1 · Sep 24";
 if("serviceWorker" in navigator){
   window.addEventListener("load", function(){
     var reloaded = false;
