@@ -384,6 +384,9 @@
   @media (max-width:700px){ .ms-item-main{ grid-template-columns:1fr; } }
   .ms-grid-wrap{ background:var(--surface-3); border:1px solid var(--border); border-radius:0 6px 6px 6px; padding:8px; }
   .ms-grid{ display:grid; grid-template-columns:repeat(6, 38px); gap:3px; max-height:340px; overflow-y:auto; padding:2px; }
+  .cube-odds{ margin-top:6px; display:grid; gap:2px; font-size:.72rem; }
+  .cube-odds .co-row{ display:flex; justify-content:space-between; gap:10px; font-family:var(--font-mono); }
+  .cube-odds .co-row small{ opacity:.7; } .cube-odds .co-note{ margin-top:3px; font-size:.66rem; opacity:.8; }
   .ms-cell{ width:38px; height:38px; border:1px solid #b9c2d6; background:#e9edf5; border-radius:3px; position:relative; display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:inset 0 1px 0 #fff; }
   .ms-cell.empty{ cursor:default; background:#eef1f7; }
   .ms-cell:not(.empty):hover, .ms-cell.hover{ border-color:#5b73a8; background:#f7f9ff; }
@@ -6587,13 +6590,23 @@ body.play-mode #quest-tracker .bt-row.done::before{ background:#9fffa8; }
     return p;
   }
 
+  /* v44: the odds a cube actually rolls (CUBE_TYPES), for its tooltip: each rank-up step with a "1 in N" read, and how
+     often the lower two lines come out at the item's own rank ("prime") */
+  function oneIn(p){ return p > 0 ? Math.round(1 / p).toLocaleString() : "-"; }
+  function cubeOddsHTML(cubeKey){
+    var c = CUBE_TYPES[cubeKey]; if(!c) return "";
+    var steps = [[1, "Rare", "Epic"], [2, "Epic", "Unique"], [3, "Unique", "Legendary"]];
+    return '<div class="cube-odds"><b>Rank-up chance per use</b>' + steps.map(function(t){ var p = c.rankUp[t[0]] || 0;
+        return '<div class="co-row"><span>' + t[1] + ' &rarr; <span style="color:' + POTENTIAL_GRADES[t[0] + 1].color + '">' + t[2] + '</span></span><span>' + (Math.round(p * 1000) / 10) + '% <small>(1 in ' + oneIn(p) + ')</small></span></div>'; }).join("") +
+      '<div class="co-note">The first cube on an item always gives it Rare. Line 1 is always of the item\'s rank; lines 2 and 3 match it ' + Math.round(c.prime[1] * 100) + '% / ' + Math.round(c.prime[2] * 100) + '% of the time.</div></div>';
+  }
   function cubeDescFor(cubeKey, gradeIdx){
     if(gradeIdx === 0) return "Grants this item Rare potential.";
     if(gradeIdx >= 4) return "Rerolls this item's Legendary potential lines.";
     var cube = CUBE_TYPES[cubeKey];
     var chance = (cube.rankUp[gradeIdx] || 0) * 100;
     var nextGrade = POTENTIAL_GRADES[gradeIdx + 1];
-    return "Rerolls potential lines — " + (Math.round(chance * 100) / 100) + "% chance to rank up to " + nextGrade.label + ".";
+    return "Rerolls potential lines — " + (Math.round(chance * 100) / 100) + "% chance (1 in " + oneIn(chance / 100) + ") to rank up to " + nextGrade.label + ".";
   }
 
   var lastCubeResult = "";
@@ -9820,8 +9833,7 @@ body.play-mode #quest-tracker .bt-row.done::before{ background:#9fffa8; }
     if(e.kind === "cube"){
       var cube = CUBE_TYPES[e.cube];
       return '<div class="ms-tip"><div class="tip-head">' + iconHTML(e.icon) + '<div><div class="tip-name">' + e.name + '</div><div class="tip-sub">USE &middot; x' + e.count + '</div></div></div><div class="tip-body">' +
-        (e.cube === "black" ? "Resets an item's potential and lets you choose between the result and what it had. Rank-up chance: Rare " + (cube.rankUp[1]*100).toFixed(1) + "%, Epic " + (cube.rankUp[2]*100).toFixed(1) + "%, Unique " + (cube.rankUp[3]*100).toFixed(2) + "%."
-          : "Resets an item's potential straight away, with a chance to rank it up: Rare " + (cube.rankUp[1]*100).toFixed(1) + "%, Epic " + (cube.rankUp[2]*100).toFixed(1) + "%, Unique " + (cube.rankUp[3]*100).toFixed(2) + "%.") + '</div></div>';
+        (e.cube === "black" ? "Resets an item's potential and lets you choose between the result and what it had." : "Resets an item's potential straight away.") + cubeOddsHTML(e.cube) + '</div></div>';
     }
     if(e.kind === "potscroll") return '<div class="ms-tip"><div class="tip-head">' + iconHTML(e.icon) + '<div><div class="tip-name">Potential Scroll</div><div class="tip-sub">USE &middot; x' + e.count + '</div></div></div><div class="tip-body">Grants Rare potential (3 lines) to a piece of equipment that has none. Cannot be used on gear that already has potential.</div></div>';
     if(e.kind === "stack"){
@@ -19994,7 +20006,7 @@ var VHSprite = (function(){
 <script>
 /* installable app: register the service worker for offline play, check for a new build on every launch, and reload
    once when a new build takes over so the update shows without a second launch */
-var VH_BUILD = "v43 · Sep 24";
+var VH_BUILD = "v44 · Sep 25";
 if("serviceWorker" in navigator){
   window.addEventListener("load", function(){
     var reloaded = false;
