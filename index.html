@@ -1095,6 +1095,11 @@
   .projectile.proj-bigstar{ width:64px; height:64px; margin-left:-32px; margin-top:-32px; z-index:6; filter:drop-shadow(0 0 6px rgba(232,238,248,.55)); }
   .proj-bigstar svg{ animation:star-spin .55s linear infinite; }
   @keyframes star-spin{ to{ transform:rotate(360deg); } }
+  .projectile.proj-star:has(.star-sprite){ width:32px; height:32px; margin-left:-16px; margin-top:-16px; }
+  .projectile .star-sprite{ position:absolute; left:50%; top:50%; margin:-16px 0 0 -16px; image-rendering:pixelated; animation:star-sprite-spin .3s linear infinite; }   /* 1:1 with the satchel icon, as Maple draws its stars */
+  .projectile .star-sprite.shadow{ filter:brightness(.55) sepia(1) hue-rotate(215deg) saturate(2.2); opacity:.9; }
+  @keyframes star-sprite-spin{ from{ transform:rotate(0deg); } to{ transform:rotate(360deg); } }
+
   .projectile{ position:absolute; width:28px; height:14px; margin-left:-14px; margin-top:-7px;
     pointer-events:none; z-index:5; transition-property:left, top; transition-timing-function:linear; }
   .projectile svg{ width:100%; height:100%; display:block; overflow:visible; }
@@ -12497,6 +12502,13 @@ var VHSprite = (function(){
     }
     return '';
   }
+  /* v45: a thrown star (the regular attack, Lucky Seven, Triple Throw) flies as the sprite of the star set being thrown,
+     spinning; Shadow Partner's copies wear the same sprite in the shadow's dusk. Avenger keeps its own giant star. */
+  function thrownStarHTML(shadow){
+    var st = activeStars(), name = st ? itemIconName(st) : null;   /* exactly the icon the satchel shows for this set */
+    if(!name || ICON_IDX[name] === undefined) return "";
+    return '<i class="ico star-sprite' + (shadow ? " shadow" : "") + '" style="background-position:-' + (ICON_IDX[name] * 32) + 'px 0"></i>';
+  }
   var WEAPON_PROJECTILE = { ranger:"arrow", gunslinger:"bullet" };
   function projectileKindFor(clsId){
     var k = equippedWeaponKind();
@@ -12551,7 +12563,7 @@ var VHSprite = (function(){
     el.style.left = (x1 / ARENA_W * 100) + "%";
     el.style.top = (y1 / ARENA_H * 100) + "%";
     el.style.transform = "rotate(" + angle + "deg)";
-    el.innerHTML = projectileSVG(kind, color);
+    el.innerHTML = kind === "star" ? (thrownStarHTML(color === "#7c6aa8") || projectileSVG(kind, color)) : projectileSVG(kind, color);
     wrap.appendChild(el);
     // Force layout so the browser registers the start position before we animate to the end.
     void el.offsetWidth;
@@ -20006,7 +20018,7 @@ var VHSprite = (function(){
 <script>
 /* installable app: register the service worker for offline play, check for a new build on every launch, and reload
    once when a new build takes over so the update shows without a second launch */
-var VH_BUILD = "v44 · Sep 25";
+var VH_BUILD = "v46 · Sep 25";
 if("serviceWorker" in navigator){
   window.addEventListener("load", function(){
     var reloaded = false;
