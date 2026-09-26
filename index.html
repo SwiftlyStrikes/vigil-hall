@@ -409,6 +409,12 @@
   .tip-sub{ color:#9aa6c8; font-size:.7rem; }
   .tip-req{ font-family:var(--font-mono); font-size:.68rem; margin-top:3px; } .tip-req .ok{ color:#9fe9a5; } .tip-req .bad{ color:#ff7a7a; }
   .tip-body{ border-top:1px dashed #3d4c78; padding-top:6px; }
+  .ms-cell.trace-cell > *:not(.lock-mark){ filter:grayscale(1) brightness(.6); opacity:.7; }
+  .ms-cell.trace-cell::after{ content:"TRACE"; position:absolute; left:1px; right:1px; bottom:1px; font:700 7px/1 var(--font-mono, monospace); letter-spacing:.06em; text-align:center; color:#c9ced9; background:rgba(10,14,24,.75); pointer-events:none; }
+  .pot-mark.hidden-pot{ outline:1px dashed #fff; outline-offset:0; opacity:.75; }
+  .tip-reveal{ margin-top:4px; font-size:.9em; color:var(--ink-dim, #b4c4dc); }
+  .tip-trace{ margin-top:6px; padding:5px 6px; border:1px dashed #6b7389; color:#c9ced9; font-size:.92em; line-height:1.4; }
+  .ms-tip.is-trace .tip-name{ font-style:italic; }
   .tip-drops{ margin-top:6px; font-size:.92em; line-height:1.4; color:var(--ink-dim, #b4c4dc); } .tip-drops b{ color:#ffd89a; font-weight:600; } .tip-drops em{ font-style:normal; opacity:.75; }
   .tip-stat{ font-family:var(--font-mono); font-size:.7rem; } .tip-stat em{ color:#ffd27a; font-style:normal; }
   .tip-pot{ margin-top:6px; border-top:1px dashed #3d4c78; padding-top:5px; font-family:var(--font-mono); font-size:.7rem; color:var(--pc); }
@@ -2181,7 +2187,7 @@ body.play-mode #quest-tracker .bt-row.done::before{ background:#9fffa8; }
             <div class="ms-tabs" id="inv-tabs"><button type="button" data-invtab="equip" class="on">EQUIP</button><button type="button" data-invtab="use">USE</button><button type="button" data-invtab="setup">SET-UP</button><button type="button" data-invtab="etc">ETC</button></div>
             <div class="ms-item-main">
               <div class="ms-grid-wrap"><div class="ms-grid" id="inv-grid"></div>
-                <div class="ms-foot"><span class="ms-meso">Gold <b class="num" id="inv-resolve">0</b></span><button type="button" class="ms-small" id="inv-sort-btn">Sort</button><button type="button" class="ms-small" id="inv-shop-btn">Restock</button><button type="button" class="ms-small" id="inv-sf-btn" title="Starforge: pick up or hover a piece of gear, then press this">&#9733; Enhance</button><button type="button" class="ms-small" id="inv-lock-btn" title="Lock or unlock the picked-up or hovered gear: locked gear cannot be sold, dropped or destroyed">&#128274; Lock</button></div></div>
+                <div class="ms-foot"><span class="ms-meso">Gold <b class="num" id="inv-resolve">0</b></span><button type="button" class="ms-small" id="inv-sort-btn">Sort</button><button type="button" class="ms-small" id="inv-shop-btn">Restock</button><button type="button" class="ms-small" id="inv-sf-btn" title="Starforge: pick up or hover a piece of gear, then press this">&#9733; Enhance</button><button type="button" class="ms-small" id="inv-reveal-btn" title="Reveal hidden potential: pick up or hover the gear, then press this (costs Gold)">&#128269; Reveal</button><button type="button" class="ms-small" id="inv-lock-btn" title="Lock or unlock the picked-up or hovered gear: locked gear cannot be sold, dropped or destroyed">&#128274; Lock</button></div></div>
               <div class="ms-status" id="ms-status"></div>
             </div>
             <div class="cube-panel" id="stars-panel" style="display:none"></div>
@@ -5785,10 +5791,10 @@ body.play-mode #quest-tracker .bt-row.done::before{ background:#9fffa8; }
     return item.classId === classDef().id;
   }
    
-  function weaponBaseAttack(wt, level, rarityMult){
+  function weaponBaseAttack(wt, level, rarityMult){    
      
     var base = wt.magic ? (15 + 0.72 * level) : (15 + 0.85 * level);
-    return Math.max(1, Math.round(base * (wt.waFactor || 1) * (rarityMult || 1) * variance()));
+    return Math.max(1, Math.round(base * (wt.waFactor || 1)));
   }
 
    
@@ -5818,7 +5824,7 @@ body.play-mode #quest-tracker .bt-row.done::before{ background:#9fffa8; }
     return Object.keys(WEAPON_TYPES).filter(function(id){ return WEAPON_TYPES[id].classId === classId; }).map(function(id){
       var wt = WEAPON_TYPES[id];
       var it = rollItem("primaryWeapon", 0, 1, classId);
-      it.weaponType = id; it.level = 0; it.rarity = "common"; it.name = "Novice " + wt.label; it.flavor = null; it.universal = false; it.classId = classId;
+      it.weaponType = id; it.level = 0; it.rarity = "common"; it.name = "Novice " + wt.label; it.flavor = null; it.universal = false; it.classId = classId; it.catalogKey = "novice:" + id;
       it.stats = {}; it.stats[wt.magic ? "magicAtk" : "weaponAtk"] = Math.max(1, Math.round((wt.magic ? 14 : 12) * (wt.waFactor || 1)));
       it.statReq = { statId: weaponScaling(wt, classId).primary, amount: 0 };
       it.potential = { grade:0, lines:[] }; it.scrollStats = {}; it.slotsUsed = 0; it.slots = 7;
@@ -6335,9 +6341,7 @@ body.play-mode #quest-tracker .bt-row.done::before{ background:#9fffa8; }
   ];
   function rollRingDrop(level, luckForRarity, classId){
     var slotId = "ring" + (1 + Math.floor(Math.random() * 4));
-    var loot = rollItem(slotId, level, luckForRarity, classId);
-    loot.name = pick(RING_DROP_POOL);
-    return loot;
+    return rollItem(slotId, level, luckForRarity, classId);    
   }
   var SLOT_ICONS = {
     cape:   '<svg viewBox="0 0 28 28" fill="none"><path d="M10 4 H18 L22 10 L24 25 L19 23 L14 26 L9 23 L4 25 L6 10 Z" fill="currentColor"/><circle cx="14" cy="5.5" r="2" fill="currentColor" opacity=".55"/></svg>',
@@ -6353,14 +6357,16 @@ body.play-mode #quest-tracker .bt-row.done::before{ background:#9fffa8; }
     trinket:'<svg viewBox="0 0 28 28" fill="none"><polygon points="14,3 22,14 14,25 6,14" fill="currentColor"/></svg>',
     glove:  '<svg viewBox="0 0 28 28" fill="none"><path d="M9 12 V7 h2.5 v5 h1 V4 h2.5 v8 h1 V3 h2.5 v9 h1 V6 h2.5 v9 l2.5-2.5 2 2 -4.5 5 V22 H9 Z" fill="currentColor"/><rect x="8" y="22" width="13" height="4" rx="1" fill="currentColor" opacity=".6"/></svg>'
   };
+   
   var RARITIES = [
-    { id:"common",    label:"Common",    mult:1.0,  color:"var(--common)",    weight:70 },
-    { id:"rare",      label:"Rare",      mult:1.2,  color:"var(--rare)",      weight:20 },
-    { id:"unique",    label:"Unique",    mult:1.45, color:"var(--unique)",    weight:8 },
-    { id:"legendary", label:"Legendary", mult:1.8,  color:"var(--legendary)", weight:2 }
+    { id:"common",    label:"Common",    mult:1, color:"var(--common)", weight:70 },
+    { id:"rare",      label:"Rare",      mult:1, color:"#5ac8ff",       weight:20 },
+    { id:"unique",    label:"Unique",    mult:1, color:"#ffd54a",       weight:8 },
+    { id:"legendary", label:"Legendary", mult:1, color:"#7fe57f",       weight:2 },
+    { id:"epic",      label:"Epic",      mult:1, color:"#c56cff",       weight:0 }
   ];
   var RARITY_BY_ID = {}; RARITIES.forEach(function(r){ RARITY_BY_ID[r.id] = r; });
-  var LEVEL_TIERS = [0,10,20,30,40,50,60,70,80,90,100,110,120,130,140,150,160,170,180,190,200];
+  var LEVEL_TIERS = (function(){ var t = []; for(var L = 0; L <= 200; L += 5) t.push(L); return t; })();    
 
    
   
@@ -6526,6 +6532,7 @@ body.play-mode #quest-tracker .bt-row.done::before{ background:#9fffa8; }
     var cube = CUBE_TYPES[cubeKey]; if(!cube) return null;
     if((state.cubes[cubeKey] || 0) < 1) return null;
     ensurePotential(item);
+    if(item.potential.hidden || item.trace) return null;
     state.cubes[cubeKey] -= 1;
     var oldGrade = item.potential.grade;
     var newGrade = oldGrade;
@@ -6539,6 +6546,7 @@ body.play-mode #quest-tracker .bt-row.done::before{ background:#9fffa8; }
     item.potential.grade = newGrade;
     item.potential.lines = rollPotential(newGrade, item, cubeKey);
     item.potential.v2 = true;
+    syncRarity(item);
     persist();
     return { rankedUp:rankedUp, grade:newGrade };
   }
@@ -6549,11 +6557,12 @@ body.play-mode #quest-tracker .bt-row.done::before{ background:#9fffa8; }
     var item = findItem(itemId); if(!item) return null;
     if((state.cubes.scroll || 0) < 1) return null;
     ensurePotential(item);
-    if(item.potential.grade > 0) return null;
+    if(item.potential.grade > 0 || item.trace) return null;
     state.cubes.scroll -= 1;
     item.potential.grade = 1;
     item.potential.lines = rollPotential(1, item, "red");
     item.potential.v2 = true;
+    syncRarity(item);
     persist();
     return { rankedUp:true, grade:1 };
   }
@@ -6565,7 +6574,7 @@ body.play-mode #quest-tracker .bt-row.done::before{ background:#9fffa8; }
       critRateFlat:0, critDmgPct:0, allDmgPct:0, cdrPct:0, moveSpdPct:0 };
     SLOT_IDS.forEach(function(slotId){
       var id = state.equipped[slotId]; if(!id) return;
-      var item = findItem(id); if(!item || !item.potential || !item.potential.lines) return;
+      var item = findItem(id); if(!item || !item.potential || !item.potential.lines || item.potential.hidden) return;    
       item.potential.lines.forEach(function(line){
         switch(line.type){
           case "statFlat": p.statFlat[line.stat] += line.value; break;
@@ -6649,17 +6658,103 @@ body.play-mode #quest-tracker .bt-row.done::before{ background:#9fffa8; }
   function uid(){ return "it" + (_idc++) + "_" + Math.floor(Math.random()*1e6); }
   function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
   function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
-  function variance(){ return 0.85 + Math.random()*0.3; }
+  function variance(){ return 1; }    
 
   
 
-  var GEAR_GEN = 2;                                    
+  var GEAR_GEN = 3;                                    
   function baseStatValue(level){ return Math.floor(Math.max(0, level) / 25); }
-  var RARITY_STAT_BONUS = { common:0, rare:1, unique:2, legendary:4 };
-  var RARITY_DEF_MULT = { common:1, rare:1.1, unique:1.2, legendary:1.35 };
-  var RARITY_ATK_MULT = { common:1, rare:1.03, unique:1.07, legendary:1.12 };
    
   var SLOT_DEF_FACTOR = { helmet:1.0, chest:1.1, bottom:0.9, greaves:0.5, glove:0.4, cape:0.5, belt:0.3, face:0.2, secondaryWeapon:1.0 };
+
+  
+
+
+
+
+   
+  var TIER_SERIES = ["Novice","Rushwoven","Hempen","Brambleknit","Copperleaf","Mossgrip","Ironbark","Oakhollow","Ashwood","Tinmark",
+    "Bronzeclasp","Saltmarsh","Greywater","Emberreed","Nightreed","Thornwarden","Stormhide","Ravenmere","Silvervein","Moonsilver",
+    "Duskwatch","Hollowpeak","Frostmere","Shardfrost","Runecut","Glyphworn","Starfall","Skyforged","Gravewind","Cinderwraith",
+    "Tidebreak","Deepcurrent","Voidglass","Riftshard","Aetherbound","Starhollow","Nightfire","Duskflame","Elder Vigil","Last Lantern","Eternal Watch"];
+  var GEAR_STEP = 5;
+  function tierSeries(level){ return TIER_SERIES[Math.max(0, Math.min(TIER_SERIES.length - 1, Math.floor((level || 0) / GEAR_STEP)))]; }
+  var GEAR_NOUNS = {
+    fighter:    { helmet:"Helm", face:"Faceguard", chest:"Hauberk", bottom:"Legplates", greaves:"Sabatons", belt:"Girdle", secondaryWeapon:"Shield", ring:"Signet", trinket:"Medallion", glove:"Gauntlets", cape:"Mantle" },
+    assassin:   { helmet:"Cowl", face:"Veil", chest:"Jerkin", bottom:"Breeches", greaves:"Softboots", belt:"Sash", secondaryWeapon:"Parrying Knife", ring:"Band", trinket:"Charm", glove:"Grips", cape:"Mantle" },
+    ranger:     { helmet:"Hat", face:"Visor", chest:"Coat", bottom:"Trousers", greaves:"Boots", belt:"Quiverbelt", secondaryWeapon:"Quiver", ring:"Loop", trinket:"Talisman", glove:"Bracers", cape:"Mantle" },
+    wizard:     { helmet:"Circlet", face:"Lenses", chest:"Robe", bottom:"Wrap", greaves:"Slippers", belt:"Cord", secondaryWeapon:"Tome", ring:"Ring", trinket:"Amulet", glove:"Gloves", cape:"Mantle" },
+    gunslinger: { helmet:"Bandana", face:"Goggles", chest:"Longcoat", bottom:"Slacks", greaves:"Seaboots", belt:"Holster", secondaryWeapon:"Powder Flask", ring:"Knot", trinket:"Locket", glove:"Knuckle Wraps", cape:"Mantle" },
+    any:        { helmet:"Cap", face:"Mask", chest:"Tunic", bottom:"Pants", greaves:"Boots", belt:"Belt", secondaryWeapon:"Buckler", ring:"Ring", trinket:"Pendant", glove:"Gloves", cape:"Mantle" }
+  };
+  var WEAPON_NOUNS = { sword1h:"Saber", sword2h:"Greatsword", axe1h:"Hatchet", axe2h:"Greataxe", blunt1h:"Mace", blunt2h:"Maul", spear:"Spear",
+    polearm:"Halberd", dagger:"Dagger", claw:"Claw", bow:"Bow", crossbow:"Crossbow", wand:"Wand", staff:"Staff", knuckle:"Knuckle", gun:"Pistol" };
+  function slotCat(slot){ return /^ring/.test(slot || "") ? "ring" : slot; }
+  function catalogKey(classId, slot, weaponType){ return "c:" + (classId || "any") + ":" + slotCat(slot) + (weaponType ? ":" + weaponType : ""); }
+  function catalogName(classId, slot, level, weaponType){
+    var series = tierSeries(level);
+    if(slot === "primaryWeapon") return series + " " + (WEAPON_NOUNS[weaponType] || (weaponType && WEAPON_TYPES[weaponType] ? WEAPON_TYPES[weaponType].label : "Blade"));
+    var nouns = GEAR_NOUNS[classId] || GEAR_NOUNS.any;
+    return series + " " + (nouns[slotCat(slot)] || GEAR_NOUNS.any[slotCat(slot)] || "Gear");
+  }
+   
+  function catalogStats(slotId, level, classId, weaponType){
+    var meta = SLOT_META[slotId] || SLOT_META.primaryWeapon;
+    var pair = (classId && CLASS_STAT_PAIR[classId]) ? CLASS_STAT_PAIR[classId] : meta;
+    var light = (slotId === "cape" || /^ring/.test(slotId) || slotId === "trinket" || slotId === "face" || slotId === "earring") ? 0.5 : 1;
+    var stats = {};
+    if(!WEAPON_SLOTS[slotId]){
+      var pv = Math.round(baseStatValue(level) * light), sv = Math.floor(pv / 2);
+      if(pv > 0) stats[pair.primary] = pv;
+      if(sv > 0) stats[pair.secondary] = (stats[pair.secondary] || 0) + sv;
+    }
+    if(ARMOR_SLOTS[slotId] || slotId === "secondaryWeapon") stats.defense = Math.max(2, Math.round(3 + level * (SLOT_DEF_FACTOR[slotId] || 0.3)));
+    if(slotId === "primaryWeapon"){
+      var wt = weaponType ? WEAPON_TYPES[weaponType] : null;
+      var magic = wt ? !!wt.magic : (classId && CLASS_DEFS[classId] && CLASS_DEFS[classId].weaponShape === "staff");
+      var atk = wt ? weaponBaseAttack(wt, level, 1) : Math.max(1, Math.round(15 + 0.85 * level));
+      if(magic){ stats.magicAtk = atk; stats.weaponAtk = Math.max(1, Math.round(atk * 0.5)); } else stats.weaponAtk = atk;
+    }
+    return stats;
+  }
+   
+  function applyDropVariance(stats){
+    function tri(){ var r = Math.random(); return r < 0.25 ? -1 : r < 0.75 ? 0 : 1; }
+    Object.keys(stats).forEach(function(k){
+      var v = stats[k]; if(!(v > 0)) return;
+      if(k === "weaponAtk" || k === "magicAtk" || k === "defense"){
+        var d = Math.max(1, Math.round(v * 0.05)); stats[k] = Math.max(1, v + Math.round((Math.random() + Math.random() - 1) * d));
+      } else stats[k] = Math.max(0, v + tri());
+    });
+    return stats;
+  }
+  
+
+  var GRADE_RARITY = ["common", "rare", "epic", "unique", "legendary"];
+  function syncRarity(item){
+    if(!item || item.era || item.questItem || item.rareRing || isStackKind(item.kind) || item.kind === "pet") return;
+    item.rarity = GRADE_RARITY[(item.potential && item.potential.grade) || 0] || "common";
+  }
+  var RARITY_TO_GRADE = { common:0, rare:1, unique:2, legendary:3 };
+  function rollDropPotential(item, luck){
+    var g = (item.level || 0) < 10 ? 0 : RARITY_TO_GRADE[rollRarity(luck).id] || 0;
+    item.potential = { grade:0, lines:[], v2:true };
+    if(g > 0){ item.potential.grade = g; item.potential.lines = rollPotential(g, item, "red"); item.potential.hidden = true; }
+    syncRarity(item);
+    return item;
+  }
+   
+  function revealCost(item){
+    var g = (item.potential && item.potential.grade) || 1, L = item.level || 0;
+    return Math.max(100, Math.round((4 + Math.pow(L, 1.8)) * 5 * Math.pow(2, g - 1) / 100) * 100);
+  }
+  function revealPotential(item){
+    if(!item || !item.potential || !item.potential.hidden) return { ok:false, why:"none" };
+    var cost = revealCost(item);
+    if(state.resolve < cost) return { ok:false, why:"poor", cost:cost };
+    state.resolve -= cost; item.potential.hidden = false; persist();
+    return { ok:true, cost:cost };
+  }
 
   function rollRarity(luck){
     var l = luck || 0;
@@ -6678,10 +6773,6 @@ body.play-mode #quest-tracker .bt-row.done::before{ background:#9fffa8; }
 
   
 
-
-
-  
-
   function statReqAmount(level, rarityMult){
     if(level < 10) return 0;
     if(level <= 30) return Math.round(3 * level + 5);
@@ -6694,76 +6785,59 @@ body.play-mode #quest-tracker .bt-row.done::before{ background:#9fffa8; }
 
   var ARMOR_SLOTS = { helmet:1, face:1, chest:1, bottom:1, greaves:1, belt:1, glove:1, cape:1 };
   var WEAPON_SLOTS = { primaryWeapon:1, secondaryWeapon:1 };
-  function rollItem(slotId, level, luckForRarity, forClassId){
+  function pickWeaponType(classId){
+    if(!classId || !CLASS_WEAPON_TYPES[classId] || !CLASS_WEAPON_TYPES[classId].length) return null;
+    var wpool = [];
+    CLASS_WEAPON_TYPES[classId].forEach(function(tid){
+      var scl = weaponScaling(WEAPON_TYPES[tid], classId);
+      var n = (scl.primary === CLASS_DEFS[classId].primaryStat) ? 4 : 1;    
+      for(var k = 0; k < n; k++) wpool.push(tid);
+    });
+    return pick(wpool);
+  }
+   
+  function makeCatalogItem(slotId, level, classId, weaponType){
+    classId = slotId === "earring" ? null : (classId || null);    
     var meta = SLOT_META[slotId];
-    var rarity = rollRarity(luckForRarity);
-    var base = baseStatValue(level);
-    var classId = slotId === "earring" ? null : (forClassId || null);    
-    
-
-
     var pair = (classId && CLASS_STAT_PAIR[classId]) ? CLASS_STAT_PAIR[classId] : meta;
-     
-    var light = (slotId === "cape" || /^ring/.test(slotId) || slotId === "trinket" || slotId === "face" || slotId === "earring") ? 0.5 : 1;
-    var primaryVal = WEAPON_SLOTS[slotId] ? 0 : Math.round((base + RARITY_STAT_BONUS[rarity.id]) * light);
-    var secondaryVal = WEAPON_SLOTS[slotId] ? 0 : Math.floor(primaryVal / 2);
-    var stats = {};
-    if(primaryVal > 0) stats[pair.primary] = primaryVal;
-    if(secondaryVal > 0) stats[pair.secondary] = (stats[pair.secondary] || 0) + secondaryVal;
-    
-
-
-
-    var weaponType = null;
-    if(slotId === "primaryWeapon" && classId && CLASS_WEAPON_TYPES[classId] && CLASS_WEAPON_TYPES[classId].length){
-      var wpool = [];
-      CLASS_WEAPON_TYPES[classId].forEach(function(tid){
-        var scl = weaponScaling(WEAPON_TYPES[tid], classId);
-        var n = (scl.primary === CLASS_DEFS[classId].primaryStat) ? 4 : 1;    
-        for(var k = 0; k < n; k++) wpool.push(tid);
-      });
-      weaponType = pick(wpool);
-    }
-    
-
-
-    if(ARMOR_SLOTS[slotId] || slotId === "secondaryWeapon"){
-      stats.defense = Math.max(2, Math.round((3 + level * (SLOT_DEF_FACTOR[slotId] || 0.3)) * RARITY_DEF_MULT[rarity.id] * variance()));
-    }
-    if(slotId === "primaryWeapon"){
-      var wtMeta = weaponType ? WEAPON_TYPES[weaponType] : null;
-      var isCasterWeapon = wtMeta ? !!wtMeta.magic : (classId && CLASS_DEFS[classId] && CLASS_DEFS[classId].weaponShape === "staff");
-      var atkKey = isCasterWeapon ? "magicAtk" : "weaponAtk";
-       
-      stats[atkKey] = wtMeta ? weaponBaseAttack(wtMeta, level, RARITY_ATK_MULT[rarity.id]) : Math.max(1, Math.round((15 + 0.85 * level) * RARITY_ATK_MULT[rarity.id] * variance()));
-      if(isCasterWeapon) stats.weaponAtk = Math.max(1, Math.round(stats.magicAtk * 0.5));
-    }
-    var setId = null;
-    var weaponNamePool = null;
-    if(slotId === "primaryWeapon" && weaponType){
-      weaponNamePool = (classId && CLASS_WEAPON_NAMES[classId] && CLASS_WEAPON_NAMES[classId][weaponType]) || null;
-      if(!weaponNamePool) Object.keys(CLASS_WEAPON_NAMES).forEach(function(c){ if(!weaponNamePool && CLASS_WEAPON_NAMES[c][weaponType]) weaponNamePool = CLASS_WEAPON_NAMES[c][weaponType]; });
-    }
-    var name = weaponNamePool ? pick(weaponNamePool) : pick(NAME_POOL[slotId]);
-    var icon = null;
+    if(slotId === "primaryWeapon" && !weaponType) weaponType = pickWeaponType(classId);
+    var stats = catalogStats(slotId, level, classId, weaponType);
+    var name = catalogName(classId, slotId, level, weaponType), icon = null, key = catalogKey(classId, slotId, weaponType);
     if(slotId === "earring"){
        
       var line = earringLineFor(level);
-      name = line.name; icon = line.icon;
+      name = line.name; icon = line.icon; key = "e:" + line.name;
       var mdef = Math.max(0, level - 20);
-      if(mdef > 0) stats.defense = Math.max(1, Math.round(mdef * RARITY_DEF_MULT[rarity.id] * variance()));
+      if(mdef > 0) stats.defense = Math.max(1, mdef);
       if(line.allStats) STATS.forEach(function(st){ stats[st.id] = (stats[st.id] || 0) + line.allStats; });
       if(line.hp) stats.hp = (stats.hp || 0) + line.hp;
     }
-    if(rarity.id === "legendary"){
-      var set = pick(SET_DEFS);
-      setId = set.id;
-      name = (slotId === "primaryWeapon" && classId && set.weaponNames && set.weaponNames[classId]) ? set.weaponNames[classId] : (set.pieces[slotId] || name);
-    }
-    return { id:uid(), slot:slotId, level:level, rarity:rarity.id, stats:stats, name:name, icon:icon, setId:setId, gen:GEAR_GEN,
-      classId: classId, weaponType: weaponType, universal: slotId === "cape" || slotId === "earring", flavor:null,
-      potential:{ grade:0, lines:[] }, statReq:{ statId:pair.primary, amount: slotId === "earring" ? 0 : statReqAmount(level, rarity.mult) },
+    return { id:uid(), slot:slotId, level:level, rarity:"common", stats:stats, name:name, icon:icon, setId:null, gen:GEAR_GEN, catalogKey:key,
+      classId: classId, weaponType: weaponType || null, universal: slotId === "cape" || slotId === "earring", flavor:null,
+      potential:{ grade:0, lines:[], v2:true }, statReq:{ statId:pair.primary, amount: slotId === "earring" ? 0 : statReqAmount(level, 1) },
       slots: SLOT_COUNT_BY_SLOT[slotId] || 7, slotsUsed:0, scrollStats:{} };
+  }
+  function rollItem(slotId, level, luckForRarity, forClassId){
+    var it = makeCatalogItem(slotId, level, forClassId || null, null);
+    applyDropVariance(it.stats);
+    return rollDropPotential(it, luckForRarity);
+  }
+   
+  var SET_LEVEL = { duskbound:70, echoform:130 };
+  function setForBossMap(mp){ var top = mapBand(mp)[1]; return top >= 120 ? "echoform" : top >= 60 ? "duskbound" : null; }
+  function makeSetPiece(setId, slotId, classId, weaponType, clean){
+    var set = SET_BY_ID[setId]; if(!set) return null;
+    var it = makeCatalogItem(slotId, SET_LEVEL[setId] || 100, classId, weaponType);
+    it.setId = setId;
+    it.name = (slotId === "primaryWeapon" && classId && set.weaponNames && set.weaponNames[classId]) ? set.weaponNames[classId] : (set.pieces[slotId] || it.name);
+    it.catalogKey = "s:" + setId + ":" + slotCat(slotId) + ":" + (classId || "any") + (it.weaponType ? ":" + it.weaponType : "");
+    if(!clean) applyDropVariance(it.stats);
+    return it;
+  }
+  function rollSetPiece(setId, classId, luck){
+    var pool = SLOT_IDS.filter(function(s){ return !/^ring[234]$/.test(s); });
+    var it = makeSetPiece(setId, pick(pool), classId, null, false);
+    return it ? rollDropPotential(it, luck) : null;
   }
 
    
@@ -6784,46 +6858,53 @@ body.play-mode #quest-tracker .bt-row.done::before{ background:#9fffa8; }
     { slot:"ring2",           name:"Bent Copper Band", flavor:"Too cheap to pawn, too stubborn to lose.", statWeights:{ luck:1.2, strength:0.4 } },
     { slot:"cape",            name:"Patched Traveling Cloak", flavor:"Mended so many times that none of the original cloth is left. It still keeps the rain off.", statWeights:{ strength:0.5, dexterity:0.5, intelligence:0.5, luck:0.5 } }
   ];
-  function rollUniversalItem(level, luckForRarity){
-    var tpl = pick(UNIVERSAL_ITEMS);
-    var rarity = rollRarity(luckForRarity);
-    var base = baseStatValue(level) + RARITY_STAT_BONUS[rarity.id];
-    var stats = {};
-    Object.keys(tpl.statWeights).forEach(function(stat){
-      var v = Math.round(base * tpl.statWeights[stat]); if(v > 0) stats[stat] = v;
-    });
-    if(ARMOR_SLOTS[tpl.slot]) stats.defense = Math.max(2, Math.round((3 + level * (SLOT_DEF_FACTOR[tpl.slot] || 0.3)) * RARITY_DEF_MULT[rarity.id] * variance()));
-    if(tpl.slot === "primaryWeapon") stats.weaponAtk = Math.max(1, Math.round((15 + 0.85 * level) * RARITY_ATK_MULT[rarity.id] * variance()));
+  function universalTemplate(name){ for(var i = 0; i < UNIVERSAL_ITEMS.length; i++) if(UNIVERSAL_ITEMS[i].name === name) return UNIVERSAL_ITEMS[i]; return null; }
+  function makeUniversalItem(tpl, level){
+    var base = baseStatValue(level), stats = {};
+    Object.keys(tpl.statWeights).forEach(function(stat){ var v = Math.round(base * tpl.statWeights[stat]); if(v > 0) stats[stat] = v; });
+    if(ARMOR_SLOTS[tpl.slot]) stats.defense = Math.max(2, Math.round(3 + level * (SLOT_DEF_FACTOR[tpl.slot] || 0.3)));
+    if(tpl.slot === "primaryWeapon") stats.weaponAtk = Math.max(1, Math.round(15 + 0.85 * level));
     var primaryStat = Object.keys(tpl.statWeights)[0];
-    return { id:uid(), slot:tpl.slot, level:level, rarity:rarity.id, stats:stats, name:tpl.name, setId:null, gen:GEAR_GEN,
+    return { id:uid(), slot:tpl.slot, level:level, rarity:"common", stats:stats, name:tpl.name, setId:null, gen:GEAR_GEN, catalogKey:"u:" + tpl.name,
       classId:null, universal:true, flavor:tpl.flavor,
-      potential:{ grade:0, lines:[] }, statReq:{ statId:primaryStat, amount:statReqAmount(level, rarity.mult) },
+      potential:{ grade:0, lines:[], v2:true }, statReq:{ statId:primaryStat, amount:statReqAmount(level, 1) },
       slots: SLOT_COUNT_BY_SLOT[tpl.slot] || 7, slotsUsed:0, scrollStats:{} };
   }
+  function rollUniversalItem(level, luckForRarity){
+    var it = makeUniversalItem(pick(UNIVERSAL_ITEMS), level);
+    applyDropVariance(it.stats);
+    return rollDropPotential(it, luckForRarity);
+  }
 
-   
+  
+
+
   function normalizeGear(st){
     if(!st || !st.inventory) return;
     st.inventory.forEach(function(it){
-      if(!it || isStackKind(it.kind) || (it.gen || 0) >= GEAR_GEN) return;
-      var fresh = it.universal && !it.setId && it.slot !== "cape" ? null : null;
-      var meta = SLOT_META[it.slot] || { primary:"strength", secondary:"dexterity" };
-      var pair = (it.classId && CLASS_STAT_PAIR[it.classId]) ? CLASS_STAT_PAIR[it.classId] : meta;
-      var rarity = it.rarity || "common", base = baseStatValue(it.level || 0), stats = {};
-      var light = (it.slot === "cape" || /^ring/.test(it.slot) || it.slot === "trinket" || it.slot === "face") ? 0.5 : 1;
-      if(!WEAPON_SLOTS[it.slot]){
-        var pv = Math.round((base + RARITY_STAT_BONUS[rarity]) * light), sv = Math.floor(pv / 2);
-        if(pv > 0) stats[pair.primary] = pv; if(sv > 0) stats[pair.secondary] = (stats[pair.secondary] || 0) + sv;
+      if(!it || isStackKind(it.kind) || it.kind === "pet" || !SLOT_META[it.slot] || (it.gen || 0) >= GEAR_GEN) return;
+      ensurePotential(it);
+      if(it.era || it.questItem || it.rareRing){ it.gen = GEAR_GEN; it.catalogKey = it.era ? "era:" + it.era : it.questItem ? "q:" + it.questItem : "rr:" + it.rareRing; return; }
+      var oldRarity = it.rarity || "common", lv = it.level || 0, fresh = null;
+      var tpl = it.universal && !it.setId ? universalTemplate(it.name) : null;
+      if(tpl) fresh = makeUniversalItem(tpl, lv);
+      else if(it.setId && SET_BY_ID[it.setId]){ fresh = makeSetPiece(it.setId, it.slot, it.classId || null, it.weaponType || null, true); if(fresh){ fresh.level = lv; fresh.stats = catalogStats(it.slot, lv, it.classId || null, it.weaponType || null); } }
+      else if(/^Novice /.test(it.name || "") && it.weaponType && lv === 0){ fresh = { name:it.name, stats:it.stats, catalogKey:"novice:" + it.weaponType }; }
+      else fresh = makeCatalogItem(it.slot, lv, it.slot === "earring" ? null : (it.classId || null), it.weaponType || null);
+      if(fresh){
+        it.name = (it.setId ? it.name : fresh.name); it.stats = fresh.stats; it.catalogKey = fresh.catalogKey;
+        if(fresh.icon) it.icon = fresh.icon;
+        if(fresh.weaponType && !it.weaponType) it.weaponType = fresh.weaponType;
       }
-      if(ARMOR_SLOTS[it.slot] || it.slot === "secondaryWeapon") stats.defense = Math.max(2, Math.round((3 + (it.level || 0) * (SLOT_DEF_FACTOR[it.slot] || 0.3)) * RARITY_DEF_MULT[rarity]));
-      if(it.slot === "primaryWeapon"){
-        var wt = it.weaponType ? WEAPON_TYPES[it.weaponType] : null, magic = wt ? !!wt.magic : !!it.stats.magicAtk;
-        var atk = wt ? weaponBaseAttack(wt, it.level || 0, RARITY_ATK_MULT[rarity]) : Math.round((15 + 0.85 * (it.level || 0)) * RARITY_ATK_MULT[rarity]);
-        if(magic){ stats.magicAtk = atk; stats.weaponAtk = Math.max(1, Math.round(atk * 0.5)); } else stats.weaponAtk = atk;
+      if(it.potential.grade === 0 && RARITY_TO_GRADE[oldRarity] > 0 && lv >= 10){
+        var g = RARITY_TO_GRADE[oldRarity];
+        it.potential = { grade:g, lines:rollPotential(g, it, "red"), v2:true, hidden:true };
       }
-      it.stats = stats; it.gen = GEAR_GEN;
+      syncRarity(it);
+      it.gen = GEAR_GEN;
     });
   }
+
 
    
   
@@ -6947,7 +7028,7 @@ body.play-mode #quest-tracker .bt-row.done::before{ background:#9fffa8; }
     var stats = {}; Object.keys(u.stats).forEach(function(k){ stats[k] = u.stats[k]; });
     var classId = u.classId || null;
     var primary = classId && CLASS_STAT_PAIR[classId] ? CLASS_STAT_PAIR[classId].primary : (SLOT_META[u.slot] || SLOT_META.helmet).primary;
-    return { id:uid(), slot:u.slot, level:u.level, rarity:"unique", stats:stats, name:u.name, setId:null, gen:GEAR_GEN, era:u.id,
+    return { id:uid(), slot:u.slot, level:u.level, rarity:"unique", stats:stats, name:u.name, setId:null, gen:GEAR_GEN, era:u.id, catalogKey:"era:" + u.id,
       classId:classId, weaponType:u.weaponType || null, universal:!classId, flavor:u.flavor || null,
       potential:{ grade:0, lines:[] }, statReq:{ statId:primary, amount: classId ? statReqAmount(u.level, 1) : 0 },
       slots:u.slots, slotsUsed:0, scrollStats:{} };
@@ -8174,6 +8255,7 @@ body.play-mode #quest-tracker .bt-row.done::before{ background:#9fffa8; }
   }
   function sfAttempt(item, safeguard){
     sfEnsure(item); var max = sfMaxStars(item.level), s = item.stars || 0;
+    if(item.trace) return { kind:"trace" };
     if(s >= max) return { kind:"max" };
     var cost = sfCost(item, safeguard);
     if(state.resolve < cost) return { kind:"poor", cost:cost };
@@ -8183,23 +8265,46 @@ body.play-mode #quest-tracker .bt-row.done::before{ background:#9fffa8; }
       var g = sfNextGain(item); Object.keys(g).forEach(function(k){ item.starStats[k] = (item.starStats[k] || 0) + g[k]; });
       item.stars = s + 1; item.sfFails = 0; res = { kind:"success", gain:g, stars:item.stars };
     } else if(roll < odds.success + odds.destroy){
-      state.traces = state.traces || [];
-      state.traces.push({ id:"trace_" + Date.now(), slot:item.slot, level:item.level, name:item.name, stars:sfTraceStars(s) });
-      state.inventory = state.inventory.filter(function(it){ return it.id !== item.id; });
+       
       SLOT_IDS.forEach(function(sl){ if(state.equipped[sl] === item.id) state.equipped[sl] = null; });
-      res = { kind:"destroy", stars:sfTraceStars(s) };
+      item.trace = { stars:sfTraceStars(s), from:s }; item.stars = 0; item.starStats = {}; item.sfFails = 0;
+      res = { kind:"destroy", stars:item.trace.stars };
     } else res = { kind:"fail", stars:s };    
     persist(); renderHud(); if(typeof renderCombatBarsIdle === "function") renderCombatBarsIdle();
     return res;
   }
-  function sfTraceFor(item){
-    var t = (state.traces || []).filter(function(tr){ return tr.slot === item.slot && tr.level === item.level && tr.stars > (item.stars || 0); });
-    t.sort(function(a, b){ return b.stars - a.stars; }); return t[0] || null;
+   
+  function itemIdentity(item){ return item && item.catalogKey ? item.catalogKey + "@" + (item.level || 0) : null; }
+  function sfEquippedIds(){ var ids = {}; SLOT_IDS.forEach(function(sl){ if(state.equipped[sl]) ids[state.equipped[sl]] = 1; }); return ids; }
+   
+  function sfTraceMaterials(trace){
+    var key = itemIdentity(trace), eq = sfEquippedIds(); if(!key) return [];
+    return state.inventory.filter(function(it){ return it !== trace && !it.trace && !eq[it.id] && !it.locked && itemIdentity(it) === key; });
   }
-  function sfRestore(item, trace){
-    item.stars = trace.stars; sfRecompute(item); item.sfFails = 0;
-    state.traces = (state.traces || []).filter(function(tr){ return tr.id !== trace.id; });
-    persist(); renderHud();
+   
+  function sfTraceFor(item){
+    if(!item || item.trace) return null;
+    var key = itemIdentity(item);
+    var items = key ? state.inventory.filter(function(it){ return it.trace && itemIdentity(it) === key; }) : [];
+    items.sort(function(a, b){ return b.trace.stars - a.trace.stars; });
+    if(items.length && !sfEquippedIds()[item.id] && !item.locked) return { kind:"item", item:items[0], name:items[0].name, stars:items[0].trace.stars };
+    var t = (state.traces || []).filter(function(tr){ return tr.slot === item.slot && tr.level === item.level && tr.stars > (item.stars || 0); });
+    t.sort(function(a, b){ return b.stars - a.stars; });
+    return t[0] ? { kind:"legacy", record:t[0], name:t[0].name, stars:t[0].stars } : null;
+  }
+   
+  function sfRestoreTrace(trace, material){
+    if(!trace || !trace.trace || !material) return false;
+    state.inventory = state.inventory.filter(function(it){ return it.id !== material.id; });
+    var stars = trace.trace.stars; trace.trace = null; trace.stars = stars; sfRecompute(trace); trace.sfFails = 0;
+    persist(); renderHud(); return true;
+  }
+  function sfRestore(item, t){
+    if(t && t.kind === "item") return sfRestoreTrace(t.item, item);
+    var rec = t && t.record ? t.record : t;    
+    item.stars = rec.stars; sfRecompute(item); item.sfFails = 0;
+    state.traces = (state.traces || []).filter(function(tr){ return tr.id !== rec.id; });
+    persist(); renderHud(); return true;
   }
   function starsHTML(item){
     sfEnsure(item); var max = sfMaxStars(item.level), s = item.stars || 0, out = "";
@@ -9846,14 +9951,14 @@ body.play-mode #quest-tracker .bt-row.done::before{ background:#9fffa8; }
       var c = cells[i];
       if(!c){ html += '<div class="ms-cell empty" data-cell="' + i + '"></div>'; continue; }
       var extra = "";
-      if(c.item && c.item.potential && c.item.potential.grade > 0) extra += '<b class="pot-mark" style="background:' + POTENTIAL_GRADES[c.item.potential.grade].color + '"></b>';
+      if(c.item && c.item.potential && c.item.potential.grade > 0) extra += '<b class="pot-mark' + (c.item.potential.hidden ? ' hidden-pot' : '') + '" style="background:' + POTENTIAL_GRADES[c.item.potential.grade].color + '"></b>';
       if(c.count != null) extra += '<span class="ms-count">' + c.count + '</span>';
       if(c.stat) extra += '<b class="stat-mark" style="color:' + (STAT_BY_ID[c.stat] ? STAT_BY_ID[c.stat].hex : "#e8e2c8") + '">' + (STAT_BY_ID[c.stat] ? STAT_BY_ID[c.stat].name : (c.stat === "speed" ? "SPD" : "JMP")) + '</b>';
       if((c.item && c.item.locked) || c.ulock) extra += '<b class="lock-mark" title="Locked"></b>';
       if(c.item && c.item.quest) extra += '<b class="quest-mark" title="Quest item">Q</b>';
       var rar = c.item && c.item.rarity && !isStackKind(c.item.kind) ? RARITY_BY_ID[c.item.rarity] : null;
       var target = carry ? dropTargetClass(carry, c) : "";
-      html += '<div class="ms-cell' + (carry && carry.key === c.key ? " carried" : "") + (invHover === c.key ? " hover" : "") + target + '" data-cell="' + i + '" data-key="' + c.key + '"' +
+      html += '<div class="ms-cell' + (c.item && c.item.trace ? " trace-cell" : "") + (carry && carry.key === c.key ? " carried" : "") + (invHover === c.key ? " hover" : "") + target + '" data-cell="' + i + '" data-key="' + c.key + '"' +
         (rar ? ' style="--rc:' + rar.color + '"' : '') + '>' + iconHTML(c.icon) + extra + '</div>';
     }
     if(invTab === "setup") html = '<div class="ms-empty">Nothing here yet.</div>';
@@ -9929,7 +10034,7 @@ body.play-mode #quest-tracker .bt-row.done::before{ background:#9fffa8; }
     }
     var item = e.item; if(!item) return "";
     ensurePotential(item);
-    var rarity = RARITY_BY_ID[item.rarity];
+    var rarity = RARITY_BY_ID[item.rarity] || RARITIES[0];
     var grade = POTENTIAL_GRADES[item.potential.grade];
     var wt = item.weaponType ? WEAPON_TYPES[item.weaponType] : null;
     var reqStat = item.statReq && item.statReq.amount ? '<span class="' + (meetsStatReq(item) ? "ok" : "bad") + '">REQ ' + STAT_BY_ID[item.statReq.statId].name.slice(0, 3).toUpperCase() + ' ' + item.statReq.amount + '</span>' : "";
@@ -9955,15 +10060,19 @@ body.play-mode #quest-tracker .bt-row.done::before{ background:#9fffa8; }
     }
     var starLine = '<div class="tip-stat" style="letter-spacing:.06em">' + starsHTML(item) + ' <em>' + (item.stars || 0) + ' / ' + sfMaxStars(item.level) + ' stars</em></div>';
     var pot = "";
-    if(item.potential.grade > 0){
+    if(item.potential.grade > 0 && item.potential.hidden){
+      pot = '<div class="tip-pot" style="--pc:' + grade.color + '"><div class="tip-pot-head">' + grade.label + ' Item &middot; Hidden Potential</div>' +
+        '<div>???</div><div>???</div><div>???</div><div class="tip-reveal">Reveal for ' + fmtNum(revealCost(item)) + ' Gold: hover or pick it up and press &#128269; Reveal.</div></div>';
+    } else if(item.potential.grade > 0){
       pot = '<div class="tip-pot" style="--pc:' + grade.color + '"><div class="tip-pot-head">' + grade.label + ' Item</div>' +
         item.potential.lines.map(function(l){ return '<div>' + l.label + ' : +' + l.value + l.suffix + '</div>'; }).join("") + '</div>';
     }
-    return '<div class="ms-tip"><div class="tip-head">' + iconHTML(e.icon, "big") + '<div><div class="tip-name" style="color:' + rarity.color + '">' + item.name + '</div>' +
+    var traceNote = item.trace ? '<div class="tip-trace">A <b>trace</b>: it cannot be equipped, but it keeps its potential, scrolls and stats. Restore it in Starforge (&#9733; Enhance) with an identical ' + item.name + ' (Lv ' + item.level + '): it comes back at ' + item.trace.stars + ' &#9733;.</div>' : '';
+    return '<div class="ms-tip' + (item.trace ? ' is-trace' : '') + '"><div class="tip-head">' + iconHTML(e.icon, "big") + '<div><div class="tip-name" style="color:' + (item.trace ? '#8b93a8' : rarity.color) + '">' + (item.trace ? 'Trace of ' : '') + item.name + '</div>' +
       '<div class="tip-sub">' + rarity.label + (e.kind === "equipped" ? " &middot; Equipped" : "") + (item.locked ? ' &middot; <span class="tip-lock">&#128274; Locked</span>' : "") + '</div><div class="tip-req">' + reqLev + ' ' + reqStat + '</div></div></div>' +
       '<div class="tip-body"><div class="tip-stat">' + jobLine + '</div>' +
       '<div class="tip-stat">' + (wt ? "WEAPON TYPE : " + wt.label + (wt.hands === 2 ? " (two-handed)" : "") : "CATEGORY : " + SLOT_META[item.slot].name) + '</div>' + speedLine + starLine + lines +
-      '<div class="tip-stat">UPGRADES AVAILABLE : ' + scrollSlotsRemaining(item) + ' <em>(' + (item.slotsUsed || 0) + ' used)</em></div>' + pot +
+      '<div class="tip-stat">UPGRADES AVAILABLE : ' + scrollSlotsRemaining(item) + ' <em>(' + (item.slotsUsed || 0) + ' used)</em></div>' + pot + traceNote +
       (item.flavor ? '<div class="tip-flavor">' + item.flavor + '</div>' : '') + '</div></div>';
   }
 
@@ -10034,6 +10143,7 @@ body.play-mode #quest-tracker .bt-row.done::before{ background:#9fffa8; }
   }
   function canEquip(item, slotId){
     if(!item) return "Nothing to equip.";
+    if(item.trace) return "A trace cannot be equipped. Restore it in Starforge with an identical " + item.name + ".";
     if(slotId && item.slot !== slotId && !(/^ring/.test(item.slot) && /^ring/.test(slotId))) return "That does not go there.";
     if(state.level < item.level) return "Your level is too low for this item.";
     if(!itemClassOk(item)) return "Your job cannot equip this item.";
@@ -10159,6 +10269,8 @@ body.play-mode #quest-tracker .bt-row.done::before{ background:#9fffa8; }
     return Math.round((cd - whole * 1000) * (1 - 0.05 * (sec - whole)));
   }
   function useOnGear(c, item){
+    if(item.trace){ msNotify("A trace cannot be enhanced. Restore it in Starforge first."); return; }
+    if(c.kind === "cube" && item.potential && item.potential.hidden){ msNotify("Reveal " + item.name + "'s potential first (press Reveal)."); return; }
     if(c.kind === "scroll"){
       var def = SCROLL_BY_ID[c.scroll];
       if(def.category && CATEGORY_BY_SLOT[item.slot] !== def.category){ msNotify("That scroll is for " + CATEGORY_BY_ID[def.category].label + " only."); return; }
@@ -10235,7 +10347,7 @@ body.play-mode #quest-tracker .bt-row.done::before{ background:#9fffa8; }
   function cubePick(which){
     var w = cubeWin; if(!w) return;
     var item = findItem(w.itemId); if(!item) return;
-    if(which === "before"){ item.potential = JSON.parse(JSON.stringify(w.before)); persist(); }
+    if(which === "before"){ item.potential = JSON.parse(JSON.stringify(w.before)); syncRarity(item); persist(); }
     w.chosen = true; w.after = JSON.parse(JSON.stringify(item.potential)); w.before = JSON.parse(JSON.stringify(item.potential));
     renderCubeWindow(); renderLoadout();
   }
@@ -10254,16 +10366,25 @@ body.play-mode #quest-tracker .bt-row.done::before{ background:#9fffa8; }
   function renderStarWindow(){
     var w = sfWin; if(!w) return;
     var item = findItem(w.itemId);
-    if(!item){
-      if(w.res && w.res.kind === "destroy"){
-        openModal('<div class="cube-win"><div class="cw-title">&#9733; Starforge Enhancement</div><div class="cw-item"><div><div class="cw-name" style="color:var(--danger)">' + w.name + ' was destroyed.</div>' +
-          '<div class="ms-dim">It left an equipment trace: enhance another ' + SLOT_META[item_slot_name(w)].name.toLowerCase() + ' of level ' + w.level + ' and the trace restores it to ' + w.res.stars + ' stars.</div></div></div>' +
-          '<div class="ms-dialog-btns"><button type="button" class="action-btn" id="ms-no">Close</button></div></div>', null);
-        return;
-      }
-      closeModal(); return;
-    }
+    if(!item){ closeModal(); return; }
     w.name = item.name; w.level = item.level; w.slot = item.slot;
+    var rcol = (RARITY_BY_ID[item.rarity] || RARITIES[0]).color;
+    if(item.trace){
+       
+      var mats = sfTraceMaterials(item);
+      var head = w.res && w.res.kind === "destroy" ? '<div class="cube-result" style="color:var(--danger)">' + item.name + ' was destroyed and left a trace.</div>' : '';
+      openModal('<div class="cube-win"><div class="cw-title">&#9733; Starforge &middot; Trace</div>' +
+        '<div class="cw-item trace-view">' + iconHTML(itemIconName(item), "big") + '<div><div class="cw-name" style="color:#8b93a8">Trace of ' + item.name + '</div>' +
+        '<div class="ms-dim">Lv ' + item.level + ' &middot; keeps its potential, scrolls and stats &middot; cannot be equipped</div></div></div>' + head +
+        '<div class="cw-cols"><div class="cw-col"><div class="cw-col-head">Trace Transfer</div>' +
+          '<div>Combine it with an identical <b>' + item.name + '</b> (Lv ' + item.level + '). That item is used up, and this one comes back at <b>' + item.trace.stars + ' &#9733;</b>.</div>' +
+          (mats.length ? '<div style="margin-top:6px">You have ' + mats.length + ' identical item' + (mats.length === 1 ? '' : 's') + ' in your satchel.</div>'
+            : '<div class="ms-dim" style="margin-top:6px">You have no identical item yet (equipped and locked items are never used).</div>') +
+        '</div></div>' +
+        '<div class="ms-dialog-btns">' + (mats.length ? '<button type="button" class="action-btn" data-sf="transfer">Restore at ' + item.trace.stars + ' &#9733;</button>' : '') +
+        '<button type="button" class="action-btn" id="ms-no">Close</button></div></div>', null);
+      return;
+    }
     var max = sfMaxStars(item.level), s = item.stars || 0, atMax = s >= max;
     var odds = sfOdds(item, w.safeguard), cost = sfCost(item, w.safeguard), gain = atMax ? {} : sfNextGain(item);
     var gainTxt = Object.keys(gain).map(function(k){ return "+" + gain[k] + " " + statName(k); }).join(", ");
@@ -10272,14 +10393,17 @@ body.play-mode #quest-tracker .bt-row.done::before{ background:#9fffa8; }
     var r = w.res, resHTML = "";
     if(r){
       resHTML = r.kind === "success" ? '<div class="cube-result" style="color:var(--success)">Success! ' + item.name + ' is now ' + r.stars + ' &#9733;.</div>'
+        : r.kind === "restored" ? '<div class="cube-result" style="color:var(--success)">The trace is restored: ' + item.name + ' is back at ' + r.stars + ' &#9733;.</div>'
         : r.kind === "fail" ? '<div class="cube-result">Failed. The stars are unchanged.</div>'
-        : r.kind === "drop" ? '<div class="cube-result" style="color:var(--danger)">Failed. A star was lost (' + r.stars + ' &#9733;).' + (r.chance ? ' <b>Chance Time:</b> the next attempt cannot fail.' : '') + '</div>'
         : r.kind === "poor" ? '<div class="cube-result" style="color:var(--danger)">Not enough Gold (' + fmtNum(r.cost) + ' needed).</div>'
         : r.kind === "max" ? '<div class="cube-result">This item is at its star cap.</div>' : "";
     }
+    var traceHTML = !trace ? '' : trace.kind === "item"
+      ? '<div style="margin-top:6px">A <b>trace of ' + trace.name + '</b> matches this item. Restoring uses this one up and brings the old one back at ' + trace.stars + ' &#9733; with its potential and scrolls. <button type="button" class="ms-small" data-sf="restore">Restore trace</button></div>'
+      : '<div style="margin-top:6px">An old trace of <b>' + trace.name + '</b> (' + trace.stars + ' &#9733;) fits this item. <button type="button" class="ms-small" data-sf="restore">Restore to ' + trace.stars + ' &#9733;</button></div>';
     var html = '<div class="cube-win">' +
       '<div class="cw-title">&#9733; Starforge Enhancement</div>' +
-      '<div class="cw-item">' + iconHTML(itemIconName(item), "big") + '<div><div class="cw-name" style="color:' + RARITY_BY_ID[item.rarity].color + '">' + item.name + '</div>' +
+      '<div class="cw-item">' + iconHTML(itemIconName(item), "big") + '<div><div class="cw-name" style="color:' + rcol + '">' + item.name + '</div>' +
         '<div style="letter-spacing:.08em;font-size:1rem">' + starsHTML(item) + ' <span class="ms-dim">' + s + ' / ' + max + '</span></div>' +
         '<div class="ms-dim">Lv ' + item.level + ' &middot; cap ' + max + ' &#9733;' + (cur ? ' &middot; from stars: ' + cur : '') + '</div></div></div>' +
       '<div class="cw-cols">' +
@@ -10290,11 +10414,10 @@ body.play-mode #quest-tracker .bt-row.done::before{ background:#9fffa8; }
             '<div class="ms-dim">You have ' + fmtNum(state.resolve) + ' Gold</div>') +
         '</div>' +
         '<div class="cw-col after"><div class="cw-col-head">Odds</div>' +
-          (atMax ? '' : (odds.chance ? '<div style="color:var(--success)"><b>Chance Time</b> &mdash; guaranteed success</div>' :
-            '<div>Success ' + odds.success + '%</div><div>Fail ' + odds.fail + '%' + (odds.drop ? ' (lose a star)' : ' (keep stars)') + '</div>' +
-            (odds.destroy || sfCanSafeguard(item) ? '<div style="color:' + (odds.destroy ? 'var(--danger)' : 'var(--success)') + '">Destroy ' + odds.destroy + '%</div>' : ''))) +
+          (atMax ? '' : '<div>Success ' + odds.success + '%</div><div>Fail ' + odds.fail + '% (keep stars)</div>' +
+            (odds.destroy || sfCanSafeguard(item) ? '<div style="color:' + (odds.destroy ? 'var(--danger)' : 'var(--success)') + '">Destroy ' + odds.destroy + '%' + (odds.destroy ? ' (leaves a trace)' : '') + '</div>' : '')) +
           (sfCanSafeguard(item) && !atMax ? '<label style="display:block;margin-top:6px"><input type="checkbox" data-sf="safeguard" ' + (w.safeguard ? "checked" : "") + '> Safeguard (no destruction, triple cost)</label>' : '') +
-          (trace ? '<div style="margin-top:6px">A trace of <b>' + trace.name + '</b> (' + trace.stars + ' &#9733;) fits this item. <button type="button" class="ms-small" data-sf="restore">Restore to ' + trace.stars + ' &#9733;</button></div>' : '') +
+          traceHTML +
         '</div>' +
       '</div>' + resHTML +
       '<div class="ms-dialog-btns">' +
@@ -10307,7 +10430,17 @@ body.play-mode #quest-tracker .bt-row.done::before{ background:#9fffa8; }
     var w = sfWin; if(!w) return;
     var item = findItem(w.itemId); if(!item) return;
     if(action === "safeguard"){ w.safeguard = !!el.checked; w.res = null; renderStarWindow(); return; }
-    if(action === "restore"){ var t = sfTraceFor(item); if(t){ sfRestore(item, t); w.res = { kind:"success", stars:item.stars }; } renderStarWindow(); renderLoadout(); return; }
+    if(action === "transfer"){    
+      var mats = sfTraceMaterials(item); if(!mats.length) return;
+      if(sfRestoreTrace(item, mats[0])){ w.res = { kind:"restored", stars:item.stars }; }
+      renderStarWindow(); renderLoadout(); return;
+    }
+    if(action === "restore"){
+      var t = sfTraceFor(item); if(!t) return;
+      if(t.kind === "item"){ var back = t.item; if(sfRestore(item, t)){ w.itemId = back.id; w.res = { kind:"restored", stars:back.stars }; } }
+      else { sfRestore(item, t); w.res = { kind:"restored", stars:item.stars }; }
+      renderStarWindow(); renderLoadout(); return;
+    }
     if(action === "go"){
       if(item.locked && sfOdds(item, w.safeguard).destroy > 0){ msNotify(item.name + " is locked: unlock it before an enhancement that can destroy it."); return; }
       w.res = sfAttempt(item, w.safeguard); if(!sfCanSafeguard(item)) w.safeguard = false; renderStarWindow(); renderLoadout(); return; }
@@ -10339,6 +10472,24 @@ body.play-mode #quest-tracker .bt-row.done::before{ background:#9fffa8; }
       if(!e || !(e.kind === "item" || e.kind === "equipped") || !e.item){ msNotify("Pick up or hover a piece of gear, then press Enhance."); return; }
       if(carry) setCarry(null);
       openStarWindow(e.item.id);
+    });
+    var rvb = document.getElementById("inv-reveal-btn");
+    if(rvb) rvb.addEventListener("click", function(){
+      var e = (carry && (carry.kind === "item" || carry.kind === "equipped")) ? carry : (entryFor(invHover) || entryFor(invFocus));
+      if(!e || !(e.kind === "item" || e.kind === "equipped") || !e.item){ msNotify("Pick up or hover a piece of gear with hidden potential, then press Reveal."); return; }
+      var it = e.item; ensurePotential(it);
+      if(it.trace){ msNotify("Restore the trace before revealing its potential."); return; }
+      if(!it.potential.hidden){ msNotify(it.potential.grade > 0 ? it.name + "'s potential is already revealed." : it.name + " has no potential to reveal."); return; }
+      if(carry) setCarry(null);
+      var cost = revealCost(it), gname = POTENTIAL_GRADES[it.potential.grade].label;
+      openModal('<div class="ms-dialog"><div class="ms-dialog-title">Reveal potential?</div><div class="ms-dialog-body">' + iconHTML(itemIconName(it)) + ' <b>' + it.name + '</b> has hidden <b style="color:' + POTENTIAL_GRADES[it.potential.grade].color + '">' + gname + '</b> potential.<br>Reveal it for <b>' + fmtNum(cost) + ' Gold</b>? <span class="ms-dim">(you have ' + fmtNum(state.resolve) + ')</span></div>' +
+        '<div class="ms-dialog-btns"><button type="button" class="action-btn" id="ms-yes"' + (state.resolve < cost ? ' disabled' : '') + '>Reveal</button><button type="button" class="action-btn" id="ms-no">Cancel</button></div></div>', function(yes){
+          if(!yes) return;
+          var r = revealPotential(it);
+          if(!r.ok){ msNotify(r.why === "poor" ? "Not enough Gold (" + fmtNum(r.cost) + " needed)." : "Nothing to reveal."); return; }
+          renderLoadout(); renderInvWindow();
+          msNotify(it.name + ": " + it.potential.lines.map(function(l){ return potDisplay(l); }).join(" / "));
+        });
     });
      
     function focusEntry(kinds){
@@ -11924,9 +12075,9 @@ var VHSprite = (function(){
     if(it.kind === "supply"){ var sd = SUPPLY_DEFS[it.supply]; return Math.max(1, Math.round((it.count || 0) * (sd ? sd.price / sd.per * 0.4 : 0.2))); }
     if(it.kind === "potion"){ var pd = POTION_DEFS[it.ref]; return pd ? pd.sell * (it.count || 0) : 0; }
     if(it.kind === "etc"){ var ed = etcDef(it.ref); return ed && !ed.quest ? ed.sell * (it.count || 0) : 0; }
-    var rar = { common:1, rare:2, unique:4, legendary:8 }[it.rarity] || 1;
+    var rar = (it.era || it.rareRing || it.questItem) ? ({ common:1, rare:2, unique:4, legendary:8 }[it.rarity] || 1) : 1;    
     var pot = (it.potential && it.potential.grade) || 0;
-    return Math.max(1, Math.round((10 + Math.pow(it.level || 0, 1.9)) * rar * (1 + pot * 0.5)));
+    return Math.max(1, Math.round((10 + Math.pow(it.level || 0, 1.9)) * rar * (1 + pot * 0.5) * (it.trace ? 0.5 : 1)));
   }
   function sellItem(id){ sellItems([id]); }
   function canSell(it){ return !!it && !isEquippedItem(it) && !it.locked && !it.quest; }
@@ -12013,7 +12164,7 @@ var VHSprite = (function(){
   }
    
   function sellAllFilters(){
-    if(!state.sellAll) state.sellAll = { rar:{ common:true, rare:true, unique:false, legendary:false }, maxLv:200, slots:"all", pot:false, stars:false, scrolled:false, otherClass:false };
+    if(!state.sellAll) state.sellAll = { rar:{ common:true, rare:true, epic:false, unique:false, legendary:false }, maxLv:200, slots:"all", pot:false, stars:false, scrolled:false, otherClass:false };
     return state.sellAll;
   }
   function gearCategory(it){ return WEAPON_SLOTS[it.slot] ? "weapon" : (/^(ring|trinket|face|belt|cape|earring)/.test(it.slot) ? "accessory" : "armor"); }
@@ -12021,6 +12172,7 @@ var VHSprite = (function(){
     var f = sellAllFilters(), me = classDef().id;
     return state.inventory.filter(function(it){
       if(isEquippedItem(it) || it.locked || !it.slot || it.kind) return false;
+      if(it.trace) return false;    
       if(!f.rar[it.rarity || "common"]) return false;
       if((it.level || 0) > f.maxLv) return false;
       if(f.slots !== "all" && gearCategory(it) !== f.slots) return false;
@@ -12035,7 +12187,7 @@ var VHSprite = (function(){
     var f = sellAllFilters(), hits = sellAllMatches(), gold = hits.reduce(function(s, it){ return s + sellPrice(it); }, 0);
     function ck(id, on, label){ return '<label class="sa-opt"><input type="checkbox" data-sa="' + id + '" ' + (on ? "checked" : "") + '> ' + label + '</label>'; }
     var html = '<div class="ms-dialog sell-all"><div class="ms-dialog-title">Sell all&hellip;</div><div class="ms-dialog-body">' +
-      '<div class="sa-row"><b>Rarity</b>' + ["common","rare","unique","legendary"].map(function(r){ return ck("rar:" + r, f.rar[r], '<span style="color:' + RARITY_BY_ID[r].color + '">' + RARITY_BY_ID[r].label + '</span>'); }).join("") + '</div>' +
+      '<div class="sa-row"><b>Rarity</b>' + ["common","rare","epic","unique","legendary"].map(function(r){ return ck("rar:" + r, !!f.rar[r], '<span style="color:' + RARITY_BY_ID[r].color + '">' + RARITY_BY_ID[r].label + '</span>'); }).join("") + '</div>' +
       '<div class="sa-row"><b>Level</b><label class="sa-opt">up to Lv <input type="number" min="0" max="200" data-sa="maxLv" value="' + f.maxLv + '"></label></div>' +
       '<div class="sa-row"><b>Type</b>' + [["all","Everything"],["weapon","Weapons"],["armor","Armour"],["accessory","Accessories"]].map(function(o){ return '<label class="sa-opt"><input type="radio" name="sa-slots" data-sa="slots:' + o[0] + '" ' + (f.slots === o[0] ? "checked" : "") + '> ' + o[1] + '</label>'; }).join("") + '</div>' +
       '<div class="sa-row"><b>Include</b>' + ck("pot", f.pot, "gear with potential") + ck("stars", f.stars, "star-forced gear") + ck("scrolled", f.scrolled, "scrolled gear") + '</div>' +
@@ -12776,6 +12928,9 @@ var VHSprite = (function(){
       var bloot = (!m.elite && Math.random() < ERA_BOSS_DROP && rollBossUnique(currentMap().id, cid)) || ((Math.random() < 0.5) ? rollUniversalItem(gearLv, totals().luck + 40) : rollItem(lootSlot(gearLv), gearLv, totals().luck + 40, cid));
       var brar = RARITY_BY_ID[bloot.rarity];
       give(function(){ state.inventory.push(bloot); }, brar.label + " " + bloot.name, brar.color, itemIconName(bloot));
+       
+      var bset = !m.elite ? setForBossMap(currentMap()) : null;
+      if(bset && Math.random() < 0.25){ var spc = rollSetPiece(bset, cid, totals().luck + 40); if(spc){ var spr = RARITY_BY_ID[spc.rarity] || RARITIES[0]; give(function(){ state.inventory.push(spc); }, "Set! " + spc.name, SET_BY_ID[bset].accent || spr.color, itemIconName(spc)); } }
       dropMult *= 4; cubeMult *= 6;
       var petSp = m.elite ? null : petBossDrop(m);
       if(petSp){ var petIt = makePet(petSp); give(function(){ state.inventory.push(petIt); }, "A " + petIt.name + " follows you!", "#ffd27f", "pet:" + petSp); }
@@ -19997,7 +20152,7 @@ var VHSprite = (function(){
 <script>
 /* installable app: register the service worker for offline play, check for a new build on every launch, and reload
    once when a new build takes over so the update shows without a second launch */
-var VH_BUILD = "v53 · Sep 26";
+var VH_BUILD = "v54 · Sep 26";
 if("serviceWorker" in navigator){
   window.addEventListener("load", function(){
     var reloaded = false;
