@@ -7574,6 +7574,7 @@ body.play-mode #quest-tracker .bt-row.done::before{ background:#9fffa8; }
       if(typeof item.slotsUsed !== "number" || item.slotsUsed < 0) item.slotsUsed = 0;
       item.slotsUsed = Math.min(item.slotsUsed, item.slots);
       if(!item.scrollStats || typeof item.scrollStats !== "object") item.scrollStats = {};
+      if(item.sfRules !== 2){ item.sfRules = 2; item.sfFails = 0; if(item.stars > 0) sfRecompute(item); }    
       if(typeof item.universal !== "boolean") item.universal = false;
       if(typeof item.classId === "undefined") item.classId = item.universal ? null : (out.custom.charClass || null);
       if(typeof item.flavor === "undefined") item.flavor = null;
@@ -8061,13 +8062,14 @@ body.play-mode #quest-tracker .bt-row.done::before{ background:#9fffa8; }
 
 
   var SF_RATES = [    
-    [95,0,0],[90,0,0],[85,0,0],[85,0,0],[80,0,0],[75,0,0],[70,0,0],[65,0,0],[60,0,0],[55,0,0],
-    [50,0,0],[45,0,0],[40,0,0],[35,0,0],[30,0,0],
-    [30,2.1,0],[30,2.1,1],[15,6.8,1],[15,6.8,1],[15,8.5,1],[30,10.5,1],[15,12.75,1],[15,17,1],[10,18,1],[10,18,1]
+    [95,0],[90,0],[85,0],[85,0],[80,0],[75,0],[70,0],[65,0],[60,0],[55,0],
+    [50,0],[45,0],[40,0],[35,0],[30,0],
+    [30,2.1],[30,2.1],[15,6.8],[15,6.8],[15,8.5],[30,10.5],[15,12.75],[15,17],[10,18],[10,18],
+    [10,18],[7,18.6],[5,19],[3,19.4],[1,19.8]
   ];
   var SF_GOLD_SCALE = 0.3;    
   function sfEnsure(item){ if(typeof item.stars !== "number") item.stars = 0; if(!item.starStats || typeof item.starStats !== "object") item.starStats = {}; if(typeof item.sfFails !== "number") item.sfFails = 0; return item; }
-  function sfMaxStars(level){ return level < 95 ? 5 : level < 108 ? 8 : level < 118 ? 10 : level < 128 ? 15 : level < 138 ? 20 : 25; }
+  function sfMaxStars(level){ return level < 95 ? 5 : level < 108 ? 8 : level < 118 ? 10 : level < 128 ? 15 : level < 138 ? 20 : 30; }
   function sfCost(item, safeguard){
     sfEnsure(item); var s = item.stars || 0, L = Math.floor(item.level / 10) * 10, L3 = L * L * L, s1 = s + 1;
     var f;
@@ -8087,13 +8089,13 @@ body.play-mode #quest-tracker .bt-row.done::before{ background:#9fffa8; }
     var cost = Math.max(100, Math.round((1000 + f) * SF_GOLD_SCALE * (s >= 10 ? 0.5 : 1) / 100) * 100);    
     return safeguard && sfCanSafeguard(item) ? cost * 3 : cost;
   }
-  function sfCanSafeguard(item){ var s = item.stars || 0; return s === 15 || s === 16; }
+  function sfCanSafeguard(item){ var s = item.stars || 0; return s >= 15 && s <= 17; }
   function sfOdds(item, safeguard){
     sfEnsure(item); var s = item.stars || 0, r = SF_RATES[Math.min(s, SF_RATES.length - 1)];
-    if(item.sfFails >= 2) return { success:100, fail:0, destroy:0, drop:0, chance:true };
     var destroy = (safeguard && sfCanSafeguard(item)) ? 0 : r[1];
-    return { success:r[0], fail:Math.round((100 - r[0] - destroy) * 100) / 100, destroy:destroy, drop:r[2], chance:false };
+    return { success:r[0], fail:Math.round((100 - r[0] - destroy) * 100) / 100, destroy:destroy, drop:0, chance:false };
   }
+  function sfTraceStars(s){ return s < 20 ? 12 : s === 20 ? 15 : s <= 22 ? 17 : s <= 25 ? 19 : 20; }
   function itemIsWeapon(item){ return !!item.weaponType; }
   function itemAtkKey(item){ var wt = item.weaponType ? WEAPON_TYPES[item.weaponType] : null; return wt && wt.magic ? "magicAtk" : "weaponAtk"; }
   function itemStatPair(item){
@@ -8104,15 +8106,36 @@ body.play-mode #quest-tracker .bt-row.done::before{ background:#9fffa8; }
   }
   
 
+  function sfBand(level){ return level < 138 ? 0 : level < 150 ? 1 : level < 160 ? 2 : level < 200 ? 3 : level < 250 ? 4 : 5; }
+  var SF_STAT_16 = [7, 9, 11, 13, 15, 17];
+  var SF_WEAPON_16 = [[6,7,7,8,9], [7,8,8,9,10,11,12], [8,9,9,10,11,12,13],    
+      [9,9,10,11,12,13,14], [13,13,14,14,15,16,17], [16,16,17,17,18,19,20]];
+  var SF_WEAPON_23 = [30, 30, 31, 32, 34, 36];
+  var SF_ARMOR_16 = [[7,8,9,10,11], [8,9,10,11,12,13,15], [9,10,11,12,13,14,16], [10,11,12,13,14,15,17], [12,13,14,15,16,17,19], [14,15,16,17,18,19,21]];
+  var SF_ARMOR_23 = [[17,19,21,22,23,24,25,26], [17,19,21,22,23,24,25,26], [18,20,22,23,24,25,26,27], [19,21,23,24,25,26,27,28], [21,23,25,26,27,28,29,30], [23,25,27,28,29,30,31,32]];
+  var SF_WEAPON_HP = [5,5,5,10,10,15,15,20,20,25,25,25,25,25,25];    
+  var SF_ARMOR_HP  = [5,5,10,10,10,15,15,20,20,25,25,25,25,25,25];   
+  var SF_GLOVE_ATK = { 5:1, 7:1, 9:1, 11:1, 13:1, 14:1, 15:1 };
+   
   function sfNextGain(item){
-    sfEnsure(item); var s = item.stars || 0, gain = {}, pair = itemStatPair(item), L = item.level;
-    var stat = s < 5 ? 2 : s < 15 ? 3 : (L < 138 ? 7 + (s - 15) : 9 + (s - 15));
-    gain[pair.primary] = stat; gain[pair.secondary] = (gain[pair.secondary] || 0) + stat;
-    if(itemIsWeapon(item)){
-      var k = itemAtkKey(item), cur = (item.stats[k] || 0) + ((item.scrollStats || {})[k] || 0) + ((item.starStats || {})[k] || 0);
-      gain[k] = s < 15 ? Math.floor(cur / 50) + 1 : (L < 138 ? 8 + (s - 15) : 10 + (s - 15));
-    } else if(item.stats.defense){
-      gain.defense = Math.max(1, Math.round(item.stats.defense * 0.05));
+    sfEnsure(item); var n = (item.stars || 0) + 1, gain = {}, pair = itemStatPair(item), band = sfBand(item.level), weapon = itemIsWeapon(item);
+    function add(k, v){ if(v) gain[k] = (gain[k] || 0) + v; }
+    function cur(k){ return (item.stats[k] || 0) + ((item.scrollStats || {})[k] || 0) + ((item.starStats || {})[k] || 0); }
+    var stat = n <= 5 ? 2 : n <= 15 ? 3 : n <= 22 ? SF_STAT_16[band] : 0;
+    add(pair.primary, stat); add(pair.secondary, stat);
+    if(weapon){
+      if(n <= 15){ add("hp", SF_WEAPON_HP[n - 1]); add("mp", SF_WEAPON_HP[n - 1]); }
+      ["weaponAtk", "magicAtk"].forEach(function(k){
+        if(!(item.stats[k] > 0)) return;    
+        add(k, n <= 15 ? Math.floor(cur(k) * 0.02 + 1) : n <= 22 ? (SF_WEAPON_16[band][n - 16] || 0) : SF_WEAPON_23[band] + (n - 23));
+      });
+    } else {
+      var def = (item.stats.defense || 0) + ((item.scrollStats || {}).defense || 0);
+      if(def > 0) add("defense", Math.max(1, Math.round(def * 0.05)));
+      if(n <= 15 && item.slot !== "glove" && item.slot !== "greaves" && item.slot !== "face") add("hp", SF_ARMOR_HP[n - 1]);
+      if(item.slot === "greaves" && n >= 3 && n <= 15){ add("speed", n >= 12 ? 2 : 1); add("jump", n >= 12 ? 2 : 1); }
+      if(item.slot === "glove" && SF_GLOVE_ATK[n]){ add("weaponAtk", 1); add("magicAtk", 1); }
+      if(n >= 16){ var a = n <= 22 ? (SF_ARMOR_16[band][n - 16] || 0) : SF_ARMOR_23[band][n - 23]; add("weaponAtk", a); add("magicAtk", a); }
     }
     return gain;
   }
@@ -8132,14 +8155,11 @@ body.play-mode #quest-tracker .bt-row.done::before{ background:#9fffa8; }
       item.stars = s + 1; item.sfFails = 0; res = { kind:"success", gain:g, stars:item.stars };
     } else if(roll < odds.success + odds.destroy){
       state.traces = state.traces || [];
-      state.traces.push({ id:"trace_" + Date.now(), slot:item.slot, level:item.level, name:item.name, stars:Math.min(12, s) });
+      state.traces.push({ id:"trace_" + Date.now(), slot:item.slot, level:item.level, name:item.name, stars:sfTraceStars(s) });
       state.inventory = state.inventory.filter(function(it){ return it.id !== item.id; });
       SLOT_IDS.forEach(function(sl){ if(state.equipped[sl] === item.id) state.equipped[sl] = null; });
-      res = { kind:"destroy", stars:Math.min(12, s) };
-    } else {
-      if(odds.drop && s > 0){ item.stars = s - 1; sfRecompute(item); item.sfFails = (item.sfFails || 0) + 1; res = { kind:"drop", stars:item.stars, chance:item.sfFails >= 2 }; }
-      else res = { kind:"fail", stars:s };
-    }
+      res = { kind:"destroy", stars:sfTraceStars(s) };
+    } else res = { kind:"fail", stars:s };    
     persist(); renderHud(); if(typeof renderCombatBarsIdle === "function") renderCombatBarsIdle();
     return res;
   }
@@ -8154,7 +8174,7 @@ body.play-mode #quest-tracker .bt-row.done::before{ background:#9fffa8; }
   }
   function starsHTML(item){
     sfEnsure(item); var max = sfMaxStars(item.level), s = item.stars || 0, out = "";
-    for(var i = 0; i < max; i++) out += '<span style="color:' + (i < s ? '#ffd24a' : '#4a5270') + '">&#9733;</span>';
+    for(var i = 0; i < max; i++) out += (i && i % 15 === 0 ? '<br>' : '') + '<span style="color:' + (i < s ? '#ffd24a' : '#4a5270') + '">&#9733;</span>';    
     return out;
   }
   function flatSkillBonus(statId){
@@ -19948,7 +19968,7 @@ var VHSprite = (function(){
 <script>
 /* installable app: register the service worker for offline play, check for a new build on every launch, and reload
    once when a new build takes over so the update shows without a second launch */
-var VH_BUILD = "v51 · Sep 26";
+var VH_BUILD = "v52 · Sep 26";
 if("serviceWorker" in navigator){
   window.addEventListener("load", function(){
     var reloaded = false;
