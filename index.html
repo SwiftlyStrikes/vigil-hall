@@ -409,6 +409,7 @@
   .tip-sub{ color:#9aa6c8; font-size:.7rem; }
   .tip-req{ font-family:var(--font-mono); font-size:.68rem; margin-top:3px; } .tip-req .ok{ color:#9fe9a5; } .tip-req .bad{ color:#ff7a7a; }
   .tip-body{ border-top:1px dashed #3d4c78; padding-top:6px; }
+  .tip-drops{ margin-top:6px; font-size:.92em; line-height:1.4; color:var(--ink-dim, #b4c4dc); } .tip-drops b{ color:#ffd89a; font-weight:600; } .tip-drops em{ font-style:normal; opacity:.75; }
   .tip-stat{ font-family:var(--font-mono); font-size:.7rem; } .tip-stat em{ color:#ffd27a; font-style:normal; }
   .tip-pot{ margin-top:6px; border-top:1px dashed #3d4c78; padding-top:5px; font-family:var(--font-mono); font-size:.7rem; color:var(--pc); }
   .tip-pot-head{ font-weight:700; margin-bottom:2px; }
@@ -7227,6 +7228,34 @@ body.play-mode #quest-tracker .bt-row.done::before{ background:#9fffa8; }
     voidsentinel: ["weapon", "chest"],
   });
    
+   
+  var SCROLL_MONSTER_FAMILIES = {"skitterling":["face_str","greaves_int"],"wraith":["helmet_int","earring_int"],"husk":["bottom_int","chest_int"],"gloomhound":["face_luk","belt_int"],"hedgesnail":["face_dex","chest_str"],"hollowslime":["ring_dex","cape_luk"],"cultist":["ring_luk","earring_str"],"revenant":["ring_int","bottom_dex"],"ashwarden":["face_dex","weapon"],"brambleboar":["face_int","earring_luk"],"sporeslime":["ring_dex","cape_dex"],"shorehog":["shield_str","belt_str"],"cellarbones":["helmet_str","trinket_str"],"rotslime":["bottom_int","chest_luk"],"leech":["earring_luk","greaves_dex"],"tinwasp":["ring_int","greaves_str"],"windupcrab":["helmet_dex","trinket_int"],"drowned":["bottom_str","chest_dex"],"tidecaller":["ring_str","cape_str"],"cinderbat":["face_str","glove"],"reedcrab":["shield_int","greaves_spd"],"quarryman":["helmet_luk","chest_str"],"stonecrab":["greaves_jmp","cape_int"],"stonesentinel":["trinket_luk","belt_luk"],"slagwarden":["greaves_spd","belt_dex"],"riftmaw":["shield_dex","cape_str"],"caveslime":["earring_dex","trinket_dex"],"drowsybones":["bottom_luk","belt_luk"],"veilstalker":["shield_luk","greaves_luk"],"hollowknight":["chest_luk","weapon"],"abbot":["shield_luk","ring_str"],"bowerwasp":["belt_int","chest_int"],"gravewisp":["face_int","earring_str"],"barrowhound":["bottom_int","cape_str"],"minerbones":["face_str","trinket_str"],"shaftboar":["shield_luk","ring_int"],"bonewright":["greaves_int","chest_str"],"ossuarian":["greaves_spd","trinket_dex"],"orchardkeeper":["bottom_dex","glove"],"mistcaller":["greaves_luk","chest_dex"],"cliffskitter":["belt_dex","helmet_luk"],"lanternwisp":["bottom_str","ring_luk"],"paperghost":["greaves_jmp","helmet_int"],"widowshade":["belt_luk","earring_dex"],"cellarcrawler":["belt_str","cape_dex"],"lanternwarden":["face_int","bottom_dex"],"reachlord":["shield_str","helmet_str"],"chorister":["shield_dex","cape_int"],"cinderling":["ring_str","helmet_dex"],"fjordraider":["greaves_dex","ring_luk"],"ghostdeckhand":["face_luk","trinket_luk"],"icehound":["earring_luk","trinket_int"],"cantor":["greaves_str","helmet_str"],"ghostcorsair":["earring_int","cape_luk"],"ghostashigaru":["bottom_luk","helmet_int"],"ghostcannoneer":["ring_dex","helmet_dex"],"pewwarden":["shield_int","chest_luk"],"choirmaster":["face_dex","helmet_luk"],"gallowscrab":["greaves_jmp","chest_int"],"ghostbosun":["earring_luk","greaves_jmp"],"ghostronin":["bottom_dex","cape_dex"],"shardling":["cape_int","trinket_int"],"ghostarcher":["shield_luk","ring_luk"],"ghostcaptain":["shield_dex","cape_luk"],"mirrorwraith":["earring_dex","trinket_int"],"ghostsamurai":["earring_dex","chest_str"],"galemoth":["shield_str","face_str"],"stormbones":["greaves_dex","face_luk"],"ghostshogun":["cape_int","helmet_int"],"glassbinder":["shield_dex","belt_luk"],"prismguard":["belt_dex","chest_dex"],"spirewarden":["earring_str","greaves_luk"],"tidecrawler":["cape_luk","ring_int"],"stardrowned":["bottom_str","helmet_luk"],"nesthulk":["bottom_luk","cape_str"],"ridgewasp":["shield_int","face_int"],"deepcaller":["earring_int","trinket_luk"],"craterhulk":["greaves_luk","chest_int"],"fallenlight":["greaves_int","helmet_str"],"wallcrawler":["ring_dex","trinket_dex"],"hollowsentry":["bottom_int","trinket_str"],"drakewarden":["greaves_str","face_dex"],"emberdrake":["bottom_str","weapon"],"siegecaster":["greaves_spd","glove"],"bastionknight":["bottom_luk","ring_str"],"fossilbones":["belt_int","chest_luk"],"castellan":["greaves_int","helmet_dex"],"emberimp":["shield_int","belt_str"],"memoryguardian":["shield_str","greaves_spd"],"memorysentinel":["shield_dex","face_luk"],"slagshade":["earring_str","belt_str"],"forgepriest":["helmet_luk","glove"],"anvilbrute":["helmet_str","trinket_str"],"forgemaster":["helmet_int","face_int"],"roadwisp":["helmet_dex","chest_luk"],"regretguardian":["shield_luk","weapon"],"regretwisp":["glove","greaves_str"],"marcher":["belt_dex","trinket_int"],"tollkeeper":["weapon","greaves_jmp"],"clockworkcrab":["earring_str","cape_dex"],"palanquin":["ring_dex","greaves_dex"],"roadwarden":["cape_dex","trinket_luk"],"saltmite":["bottom_dex","chest_str"],"brinewraith":["chest_int","greaves_str"],"saltpriest":["bottom_int","cape_int"],"pillarwarden":["belt_str","ring_str"],"oblivionguardian":["belt_luk","cape_luk"],"oblivionsentinel":["earring_luk","cape_str"],"saltbishop":["earring_dex","trinket_dex"],"cinderwing":["shield_int","greaves_int"],"emberghast":["trinket_luk","face_luk"],"glassslime":["bottom_luk","trinket_dex"],"pyrecaller":["belt_dex","face_str"],"magmahulk":["chest_dex","face_dex"],"hourglasshulk":["bottom_str","chest_dex"],"hourwasp":["belt_int","ring_int"],"terracelord":["belt_int","greaves_luk"],"courtier":["earring_int","ring_luk"],"cinderdrake":["cape_dex","greaves_int"],"nestwarden":["chest_int","helmet_int"],"pageling":["earring_int","ring_dex"],"chancellor":["chest_dex","greaves_dex"],"marrowhulk":["face_luk","bottom_str"],"throneguard":["shield_str","ring_luk"],"regent":["belt_int","greaves_spd"],"reedskitter":["weapon","trinket_str"],"deltawraith":["chest_luk","cape_luk"],"boghulk":["face_dex","earring_dex"],"fenbones":["shield_int","face_int"],"fensinger":["shield_luk","earring_int"],"bogwarden":["earring_luk","ring_dex"],"deltaking":["shield_dex","helmet_dex"],"mothling":["bottom_int","greaves_str"],"gaslightwisp":["ring_int","cape_dex"],"lampshade":["shield_int","helmet_str"],"lamplighter":["ring_str","cape_int"],"causewaymoth":["cape_str","trinket_dex"],"gaslightknight":["trinket_int","belt_luk"],"kerbwarden":["face_str","belt_str"],"lastlight":["glove","trinket_str"],"nullwisp":["belt_dex","greaves_jmp"],"unmade":["ring_int","greaves_luk"],"unmadehulk":["shield_str","helmet_luk"],"voidsentinel":["chest_str","greaves_dex"],"veilspeaker":["earring_str","bottom_luk"],"boundless":["trinket_luk","greaves_str"],"theabsence":["face_luk","bottom_dex"]};
+   
+   
+  function scrollFamiliesFor(m){
+    var own = SCROLL_MONSTER_FAMILIES[m.type]; if(own) return own;
+    var mp = currentMap(), out = [];
+    Object.keys(mp.levels || {}).forEach(function(k){ (SCROLL_MONSTER_FAMILIES[k] || []).forEach(function(f){ if(out.indexOf(f) < 0) out.push(f); }); });
+    return out.length ? out : ["helmet_str", "chest_str"];
+  }
+  function scrollFamilyOf(def){ return (def && def.category && def.tier) ? def.id.slice(0, def.id.length - String(def.tier).length - 1) : null; }
+  var scrollDropperCache = null;
+  function scrollDroppers(fam){    
+    if(!scrollDropperCache){
+      scrollDropperCache = {}; var lv = {};
+      MAPS.forEach(function(mp){ Object.keys(mp.levels || {}).forEach(function(k){ var L = mp.levels[k]; lv[k] = lv[k] ? [Math.min(lv[k][0], L), Math.max(lv[k][1], L)] : [L, L]; }); });
+      Object.keys(SCROLL_MONSTER_FAMILIES).forEach(function(k){
+        if(!lv[k]) return;
+        SCROLL_MONSTER_FAMILIES[k].forEach(function(f){ (scrollDropperCache[f] = scrollDropperCache[f] || []).push({ name:(MONSTER_TYPES[k] || {}).name || k, min:lv[k][0], max:lv[k][1] }); });
+      });
+      Object.keys(scrollDropperCache).forEach(function(f){ scrollDropperCache[f].sort(function(a, b){ return a.min - b.min; }); });
+    }
+    return scrollDropperCache[fam] || [];
+  }
+  function scrollDroppersHTML(def){
+    var list = scrollDroppers(scrollFamilyOf(def)); if(!list.length) return "";
+    return '<div class="tip-drops"><b>Dropped by</b> ' + list.map(function(d){ return d.name + ' <em>Lv ' + (d.min === d.max ? d.min : d.min + '-' + d.max) + '</em>'; }).join(", ") + '</div>';
+  }
   function scrollsForSlot(slotId){
     var cat = CATEGORY_BY_SLOT[slotId];
     return SCROLL_DEFS.filter(function(s){ return s.category === cat; });
@@ -9881,7 +9910,7 @@ body.play-mode #quest-tracker .bt-row.done::before{ background:#9fffa8; }
         : def.special === "protect" ? "Stops a Grim Scroll from destroying the item if it fails. Drop it on the item, then the Grim Scroll. Works alongside a Keeper's Scroll."
         : def.special === "white" ? "Protects an item's upgrade slot if the next scroll fails. Drop it on the item, then the scroll."
         : def.special === "chaos" ? "Shifts every stat on the item by -5 to +5, most often by a point or two either way. Success 60%; uses an upgrade slot either way."
-        : ("Improves " + cat + ": " + (def.weaponFlat ? "Weapon Attack +" + def.weaponFlat : (STAT_BY_ID[def.stat] ? STAT_BY_ID[def.stat].name : GEAR_STAT_LABELS[def.stat] || def.stat) + " +" + def.statAmt) + "<br>Success rate: " + def.successPct + "%" + (def.destroyPct ? ", if failed, the item is destroyed at " + def.destroyPct + "%" : ""));
+        : ("Improves " + cat + ": " + (def.weaponFlat ? "Weapon Attack +" + def.weaponFlat : (STAT_BY_ID[def.stat] ? STAT_BY_ID[def.stat].name : GEAR_STAT_LABELS[def.stat] || def.stat) + " +" + def.statAmt) + "<br>Success rate: " + def.successPct + "%" + (def.destroyPct ? ", if failed, the item is destroyed at " + def.destroyPct + "%" : "")) + scrollDroppersHTML(def);
       return '<div class="ms-tip"><div class="tip-head">' + iconHTML(e.icon) + '<div><div class="tip-name">' + e.name + '</div><div class="tip-sub">USE &middot; x' + e.count + (useLocked(e.key) ? ' &middot; <span class="tip-lock">&#128274; Locked</span>' : '') + '</div></div></div><div class="tip-body">' + body + '</div></div>';
     }
     if(e.kind === "cube"){
@@ -12768,14 +12797,14 @@ var VHSprite = (function(){
     if(Math.random() < 0.015 * cubeMult) give(function(){ state.cubes.black = (state.cubes.black || 0) + 1; }, "+1 Obsidian Cube", CUBE_TYPES.black.color, "cube_black");
     if(Math.random() < 0.04 * cubeMult) give(function(){ state.cubes.red = (state.cubes.red || 0) + 1; }, "+1 Ember Cube", CUBE_TYPES.red.color, "cube_red");
     if(Math.random() < 0.02 * cubeMult) give(function(){ state.cubes.scroll = (state.cubes.scroll || 0) + 1; }, "+1 Awakening Scroll", "#7dd3fc", "scroll_potential");
-    var affinity = SCROLL_MONSTER_AFFINITY[m.type] || ["helmet","chest"];
+    
+
+    var fams = scrollFamiliesFor(m);
     SCROLL_TIERS.forEach(function(tier){
       if(Math.random() < tier.dropChance * dropMult){
-        var cat = affinity[Math.floor(Math.random()*affinity.length)];
-        var catDef = CATEGORY_BY_ID[cat];
-         
-        var kinds = (catDef && catDef.stat) ? SCROLL_STATS.concat(SCROLL_EXTRA_STATS[cat] || []) : null;
-        var sid = kinds ? cat + "_" + kinds[Math.floor(Math.random()*kinds.length)].short + "_" + tier.id : cat + "_" + tier.id;
+        var ok = fams.filter(function(f){ return !!SCROLL_BY_ID[f + "_" + tier.id]; });    
+        if(!ok.length) return;
+        var sid = ok[Math.floor(Math.random() * ok.length)] + "_" + tier.id;
         if(!SCROLL_BY_ID[sid]) return;
         give(function(){ state.scrolls[sid] = (state.scrolls[sid] || 0) + 1; }, "+1 " + SCROLL_BY_ID[sid].name, "#c9ad84", scrollIconName(SCROLL_BY_ID[sid]));
       }
@@ -19968,7 +19997,7 @@ var VHSprite = (function(){
 <script>
 /* installable app: register the service worker for offline play, check for a new build on every launch, and reload
    once when a new build takes over so the update shows without a second launch */
-var VH_BUILD = "v52 · Sep 26";
+var VH_BUILD = "v53 · Sep 26";
 if("serviceWorker" in navigator){
   window.addEventListener("load", function(){
     var reloaded = false;
