@@ -5695,7 +5695,25 @@ body.play-mode #quest-tracker .bt-row.done::before{ background:#9fffa8; }
   
 
 
-  var KIT_END_TRIM = {"duskwoods": {"l": 0, "r": 0, "bl": 0, "br": 22}, "cemetery": {"l": 3, "r": 5, "bl": 0, "br": 0}, "temple": {"l": 0, "r": 0, "bl": 23, "br": 32}, "deepcave": {"l": 0, "r": 0, "bl": 4, "br": 5}, "prison": {"l": 0, "r": 0, "bl": 0, "br": 0}, "highforest": {"l": 9, "r": 9, "bl": 9, "br": 9}, "kingdom": {"l": 0, "r": 0, "bl": 0, "br": 0}, "bloodmansion": {"l": 0, "r": 0, "bl": 0, "br": 0}, "deadwind": {"l": 0, "r": 0, "bl": 16, "br": 16}, "lonelymine": {"l": 3, "r": 4, "bl": 3, "br": 4}, "sewer": {"l": 0, "r": 0, "bl": 0, "br": 0}, "muddyswamp": {"l": 0, "r": 0, "bl": 0, "br": 0}, "purplebay": {"l": 0, "r": 7, "bl": 0, "br": 7}, "monastery": {"l": 11, "r": 15, "bl": 11, "br": 15}};
+
+
+  var KIT_END_TRIM = {"duskwoods": {"l": 0, "r": 0, "bl": 0, "br": 16}, "cemetery": {"l": 3, "r": 5, "bl": 0, "br": 0}, "temple": {"l": 0, "r": 0, "bl": 0, "br": 0}, "deepcave": {"l": 0, "r": 0, "bl": 4, "br": 5}, "prison": {"l": 0, "r": 0, "bl": 0, "br": 0}, "highforest": {"l": 4, "r": 1, "bl": 4, "br": 1}, "kingdom": {"l": 0, "r": 0, "bl": 0, "br": 0}, "bloodmansion": {"l": 0, "r": 0, "bl": 0, "br": 0}, "deadwind": {"l": 0, "r": 0, "bl": 0, "br": 0}, "lonelymine": {"l": 3, "r": 4, "bl": 3, "br": 4}, "sewer": {"l": 0, "r": 0, "bl": 0, "br": 0}, "muddyswamp": {"l": 0, "r": 0, "bl": 0, "br": 0}, "purplebay": {"l": 0, "r": 0, "bl": 0, "br": 0}, "monastery": {"l": 0, "r": 0, "bl": 0, "br": 0}};
+  
+
+
+
+  var FOOT_HALF = 0;
+   
+  function fitSpawnsToFootholds(mp){
+    (mp.spawns || []).forEach(function(sp){
+      if(!(sp.y < GROUND_Y)) return;
+      var p = null; mp.platforms.forEach(function(q){ if(Math.abs(q.y - sp.y) < 1 && sp.x >= q.x1 - 40 && sp.x <= q.x2 + 40) p = q; });
+      if(!p) return;
+      var lo = p.x1 + FOOT_HALF + 2, hi = p.x2 - FOOT_HALF - 2;
+      sp.xMin = Math.max(lo, Math.min(hi, sp.xMin === undefined ? lo : sp.xMin)); sp.xMax = Math.min(hi, Math.max(sp.xMin, sp.xMax === undefined ? hi : sp.xMax));
+      sp.x = Math.max(sp.xMin, Math.min(sp.xMax, sp.x)); sp.kMin = lo; sp.kMax = hi;
+    });
+  }
   function trimFootholds(mp){
     var th = mapTheme(mp), kit = kitOf(th), tr = kit && th.kit && KIT_END_TRIM[th.kit]; if(!tr) return 0;
     var u = kitUnit(kit), n = 0;
@@ -5710,7 +5728,7 @@ body.play-mode #quest-tracker .bt-row.done::before{ background:#9fffa8; }
     return n;
   }
   function prepareMaps(){
-    MAPS.forEach(function(mp){ if(mp.platforms){ trimFootholds(mp); addReachRopes(mp.platforms, mp.climbs = mp.climbs || []); settleClimbs(mp.platforms, mp.climbs); varyClimbs(mp.platforms, mp.climbs, strSeed(mp.id) ^ 0x9e3779b9); } });
+    MAPS.forEach(function(mp){ if(mp.platforms){ trimFootholds(mp); fitSpawnsToFootholds(mp); addReachRopes(mp.platforms, mp.climbs = mp.climbs || []); settleClimbs(mp.platforms, mp.climbs); varyClimbs(mp.platforms, mp.climbs, strSeed(mp.id) ^ 0x9e3779b9); } });
   }
   prepareMaps();
 
@@ -12847,9 +12865,7 @@ var VHSprite = (function(){
     setTimeout(function(){ t.remove(); }, 2400);
   }
 
-  
-
-  var FOOT_HALF = 12;
+   
   function resolvePlatformY(entity, prevY){
     var landed = false;
     if(entity.vy >= 0){
@@ -13759,7 +13775,7 @@ var VHSprite = (function(){
       }
       if(mHas(m, "rootUntil", ts)){   }
       else if(ts < (m.hitstunUntil || 0)){
-        m.x = clamp(m.x + (m.knockVX || 0)*dt, sp.xMin - 40, sp.xMax + 40);
+        m.x = clamp(m.x + (m.knockVX || 0)*dt, sp.kMin !== undefined ? sp.kMin : sp.xMin - 40, sp.kMax !== undefined ? sp.kMax : sp.xMax + 40);
         m.knockVX = (m.knockVX || 0) * 0.9;
       } else if(pdist < (m.chaseRange || 220) && Math.abs(toY) < 117){
         var dir = toX > 0 ? 1 : -1;
@@ -20152,7 +20168,7 @@ var VHSprite = (function(){
 <script>
 /* installable app: register the service worker for offline play, check for a new build on every launch, and reload
    once when a new build takes over so the update shows without a second launch */
-var VH_BUILD = "v54 · Sep 26";
+var VH_BUILD = "v55 · Sep 26";
 if("serviceWorker" in navigator){
   window.addEventListener("load", function(){
     var reloaded = false;
