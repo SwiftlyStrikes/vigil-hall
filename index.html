@@ -1509,6 +1509,15 @@
   .save-note{ font-size:.8rem; color:var(--ink-faint); }
   .save-toast{ position:absolute; left:50%; top:14px; transform:translateX(-50%); background:rgba(10,14,28,.85); color:#e8ecf8; border:1px solid #4a5a8a; border-radius:6px; padding:6px 12px; font:600 .74rem var(--font-mono); z-index:40; pointer-events:none; opacity:0; transition:opacity .2s; }
   .save-toast.on{ opacity:1; }
+  
+  .save-toast.warn{ max-width:min(92%, 520px); width:max-content; text-align:center; line-height:1.45; background:rgba(44,10,14,.94); border-color:var(--danger); color:#ffe3e3; }
+  .slot-row.damaged{ border-color:var(--danger); flex-wrap:wrap; row-gap:8px; }
+  .slot-row.damaged .slot-info{ flex:1 1 calc(100% - 34px); }
+  .slot-row.damaged .slot-btns{ flex:1 1 100%; }
+  .slot-row.damaged .slot-name{ color:var(--danger); }
+  .save-bad{ color:var(--danger); }
+  .slot-note{ font-size:.78rem; line-height:1.4; padding:7px 11px; border:1px solid var(--accent); border-radius:var(--radius-md); color:var(--accent); background:var(--surface-2); }
+  .slot-note.bad{ border-color:var(--danger); color:var(--danger); }
   .start-actions .action-btn{ padding:13px 20px; border-radius:100px; font-weight:600; }
   .ghost-btn{ border:1px solid var(--border); background:var(--surface); color:var(--ink-dim); font-size:.86rem; font-weight:600;
     padding:13px 20px; border-radius:100px; cursor:pointer; transition:border-color .15s, color .15s, transform .15s; }
@@ -1571,7 +1580,24 @@
   .creator-actions{ display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; }
   .creator-actions .action-btn, .creator-actions .ghost-btn{ padding:13px 26px; font-size:.95rem; }
 
-  @media (prefers-reduced-motion: reduce){ *{ animation-duration:.001ms !important; transition-duration:.001ms !important; } }
+  
+
+
+
+  @media (prefers-reduced-motion: reduce){
+    *{ transition-duration:.001ms !important; }
+    .arena.shake{ animation:none; }
+    .float, .float.combo-float{ animation-name:rm-float; }
+    .dmgnum{ animation-name:rm-dmg; }
+    .world-toast{ animation-name:rm-toast; }
+    .token.player .tk-body.hurt{ animation:hit-flash .22s ease-out, rm-hurt 1.5s steps(1,end); }
+  }
+  @keyframes rm-float{ 0%, 70%{ opacity:1; transform:translate(-50%,-50%); } 100%{ opacity:0; transform:translate(-50%,-50%); } }
+  @keyframes rm-dmg{ 0%{ opacity:0; transform:translate(-50%, calc(-100% - var(--stack, 0) * 46px - 14px)); }
+    6%, 60%{ opacity:1; transform:translate(-50%, calc(-100% - var(--stack, 0) * 46px - 14px)); }
+    100%{ opacity:0; transform:translate(-50%, calc(-100% - var(--stack, 0) * 46px - 14px)); } }
+  @keyframes rm-toast{ 0%{ opacity:0; } 12%, 80%{ opacity:1; } 100%{ opacity:0; } }
+  @keyframes rm-hurt{ 0%{ opacity:.55; } 100%{ opacity:1; } }
 
   
   html, body{ overscroll-behavior:none; }
@@ -10718,8 +10744,9 @@ body.play-mode #quest-tracker .bt-row.done::before{ background:#9fffa8; }
   }
   function fsWrite(n, wrapped){
     if(!fsDir) return Promise.resolve();
+    var text = typeof wrapped === "string" ? wrapped : JSON.stringify(wrapped);    
     return fsDir.getFileHandle("slot" + n + ".json", { create:true }).then(function(f){ return f.createWritable(); })
-      .then(function(w){ return w.write(JSON.stringify(wrapped)).then(function(){ return w.close(); }); }).catch(function(){});
+      .then(function(w){ return w.write(text).then(function(){ return w.close(); }); }).catch(function(){});
   }
   function fsRead(n){
     if(!fsDir) return Promise.resolve(null);
@@ -10759,55 +10786,115 @@ body.play-mode #quest-tracker .bt-row.done::before{ background:#9fffa8; }
       : '<span class="hint">Keep your saves as files: <button type="button" class="ghost-btn small" id="folder-choose-btn">Choose a saves folder</button> <button type="button" class="ghost-btn small" id="folder-reconnect-btn">Reconnect last folder</button></span>';
   }
   function slotKey(n){ return "vigil-hall-slot-" + n; }
-  function readSlot(n){
-    if(LAUNCHER && launcherSaves[n]) return launcherSaves[n];
-    try{ var raw = localStorage.getItem(slotKey(n)); return raw ? JSON.parse(raw) : null; }catch(e){ return null; }
+  
+
+
+
+
+
+
+
+
+  function bakKey(n){ return slotKey(n) + "-bak"; }
+  function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+  function lsSet(k, v){ try{ localStorage.setItem(k, v); return true; }catch(e){ return false; } }
+  function lsDel(k){ try{ localStorage.removeItem(k); }catch(e){} }
+  function parseSave(raw){
+    if(!raw) return null;
+    try{ var p = JSON.parse(raw); return (p && typeof p === "object" && p.state && typeof p.state === "object") ? p : null; }catch(e){ return null; }
   }
+  function slotStatus(n){
+    if(LAUNCHER && launcherSaves[n]) return { st:"ok", save:launcherSaves[n] };
+    var raw = lsGet(slotKey(n));
+    if(raw == null || raw === "") return { st:"empty" };
+    var p = parseSave(raw);
+    return p ? { st:"ok", save:p } : { st:"damaged" };
+  }
+  function readSlot(n){ var s = slotStatus(n); return s.st === "ok" ? s.save : null; }
+  function noSlotSaves(){    
+    for(var n = 1; n <= SLOT_COUNT; n++){ if(LAUNCHER && launcherSaves[n]) return false; var raw = lsGet(slotKey(n)); if(raw != null && raw !== "") return false; }
+    return true;
+  }
+  function readBackup(n){ return parseSave(lsGet(bakKey(n))); }
+  function backupSlot(n){ if(LAUNCHER) return; var raw = lsGet(slotKey(n)); if(raw && parseSave(raw)) lsSet(bakKey(n), raw); }
+  function dropBackups(){ for(var n = 1; n <= SLOT_COUNT; n++) lsDel(bakKey(n)); }
+  function restoreBackup(n){ var raw = lsGet(bakKey(n)); return !!(raw && parseSave(raw)) && lsSet(slotKey(n), raw); }
   function writeSlot(n, data){
-    var wrapped = { savedAt: Date.now(), version: 2, state: data };
-    try{ localStorage.setItem(slotKey(n), JSON.stringify(wrapped)); }catch(e){}
+    var wrapped = { savedAt: Date.now(), version: 2, state: data }, text = JSON.stringify(wrapped);
+    var ok = lsSet(slotKey(n), text);
+    if(!ok){ dropBackups(); ok = lsSet(slotKey(n), text); }    
     if(LAUNCHER){
       launcherSaves[n] = wrapped;
-      try{ fetch("/api/save?slot=" + n, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(wrapped) }); }catch(e){}
+      try{ fetch("/api/save?slot=" + n, { method:"POST", headers:{ "Content-Type":"application/json" }, body: text }); }catch(e){}
     }
-    if(fsDir) fsWrite(n, wrapped);
-    return wrapped;
+    if(fsDir) fsWrite(n, text);
+    return ok || LAUNCHER;    
   }
   function deleteSlot(n){
-    try{ localStorage.removeItem(slotKey(n)); }catch(e){}
+    lsDel(slotKey(n)); lsDel(bakKey(n));
     if(LAUNCHER){ delete launcherSaves[n]; try{ fetch("/api/delete?slot=" + n, { method:"POST" }); }catch(e){} }
     if(fsDir) fsDelete(n);
   }
   function setActiveSlot(n){ activeSlot = n; try{ localStorage.setItem(ACTIVE_SLOT_KEY, String(n)); }catch(e){} }
+  var saveOk = true, saveWarnAt = 0, slotNote = null;
   function persist(){
-    try{ localStorage.setItem(SAVE_KEY, JSON.stringify(state)); }catch(e){}
-    if(state && state.created) writeSlot(activeSlot, state);
+    var ok = true;
+    if(state && state.created){
+      ok = writeSlot(activeSlot, state);
+      if(!ok) saveFailed(false);
+      else if(!saveOk){ saveOk = true; saveToast("Saving works again"); renderGameMenu(); }
+    }
     try{ if(window.claude && window.claude.hot && window.claude.hot.snapshot) window.claude.hot.snapshot(state); }catch(e){}
+    return ok;
   }
-  function saveToast(text){
+   
+  function saveFailed(force){
+    var first = saveOk; saveOk = false;
+    if(first) renderGameMenu();
+    var now = Date.now(); if(!force && now - saveWarnAt < 60000) return;
+    saveWarnAt = now;
+    saveToast("Couldn't save: this browser's storage is full. Use Save to File in the Game menu so nothing is lost.", 7000, true);
+  }
+   
+  document.addEventListener("visibilitychange", function(){ if(document.hidden && state && state.created) persist(); });
+  window.addEventListener("pagehide", function(){ if(state && state.created) persist(); });
+  function saveToast(text, ms, warn){
     var el = document.getElementById("save-toast"); if(!el) return;
-    el.textContent = text; el.classList.add("on");
-    clearTimeout(saveToast._t); saveToast._t = setTimeout(function(){ el.classList.remove("on"); }, 1800);
+    el.textContent = text; el.classList.add("on"); el.classList.toggle("warn", !!warn);
+    clearTimeout(saveToast._t); saveToast._t = setTimeout(function(){ el.classList.remove("on"); }, ms || 1800);
   }
-  function saveGameNow(){ persist(); saveToast("Saved to slot " + activeSlot); renderGameMenu(); }
-  function exportSave(n){
-    var s = (n && n !== activeSlot) ? readSlot(n) : { savedAt: Date.now(), version: 2, state: state };
-    if(!s || !s.state) return;
-    var name = ((s.state.custom && s.state.custom.name) || "warden").replace(/[^A-Za-z0-9_-]+/g, "_");
-    var text = JSON.stringify(s), fname = "vigil-hall-" + name + "-lv" + s.state.level + ".json";
+  
+
+  function saveMsg(text, warn){
+    if(currentScreen === "game"){ saveToast(text, warn ? 5000 : 0, warn); return; }
+    slotNote = { text:text, warn:!!warn, until:Date.now() + 10000 }; renderSlots();
+  }
+  function saveGameNow(){
+    if(persist()) saveToast("Saved to slot " + activeSlot); else saveFailed(true);
+    renderGameMenu();
+  }
+  function downloadText(fname, text, type){
      
     if(window.claude && typeof window.claude.use === "function" && !LAUNCHER){
       window.claude.use("downloads").then(function(dl){
-        if(!dl){ saveToast("Downloads are not available here"); return; }
-        return dl.save({ filename: fname, data: text }).then(function(){ saveToast("Save file downloaded"); }, function(err){ saveToast(err && err.code === "declined" ? "Download cancelled" : "Download failed"); });
+        if(!dl){ saveMsg("Downloads are not available here", true); return; }
+        return dl.save({ filename: fname, data: text }).then(function(){ saveMsg("Save file downloaded"); }, function(err){ saveMsg(err && err.code === "declined" ? "Download cancelled" : "Download failed", true); });
       });
       return;
     }
-    var blob = new Blob([text], { type:"application/json" });
+    var blob = new Blob([text], { type: type || "application/json" });
     var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = fname;
     document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 500);
-    saveToast("Save file downloaded");
+    saveMsg("Save file downloaded");
   }
+  function exportSave(n){
+    var s = (n && (n !== activeSlot || !(state && state.created))) ? readSlot(n) : { savedAt: Date.now(), version: 2, state: state };
+    if(!s || !s.state) return;
+    var name = ((s.state.custom && s.state.custom.name) || "warden").replace(/[^A-Za-z0-9_-]+/g, "_");
+    downloadText("vigil-hall-" + name + "-lv" + s.state.level + ".json", JSON.stringify(s));
+  }
+   
+  function exportDamaged(n){ var raw = lsGet(slotKey(n)); if(raw) downloadText("vigil-hall-slot" + n + "-damaged.txt", raw, "text/plain"); }
   var importTarget = null;
   function importSaveFile(file, targetSlot, done){
     var reader = new FileReader();
@@ -10815,17 +10902,18 @@ body.play-mode #quest-tracker .bt-row.done::before{ background:#9fffa8; }
       try{
         var parsed = JSON.parse(reader.result);
         var data = parsed && parsed.state ? parsed.state : parsed;
-        if(!data || typeof data !== "object" || !data.custom){ saveToast("That is not a Vigil Hall save"); return; }
-        writeSlot(targetSlot, mergeDefaults(data));
-        saveToast("Imported into slot " + targetSlot);
+        if(!data || typeof data !== "object" || !data.custom){ saveMsg("That is not a Vigil Hall save", true); return; }
+        if(!writeSlot(targetSlot, mergeDefaults(data))){ saveMsg("Couldn't import: this browser's storage is full", true); return; }
+        saveMsg("Imported into slot " + targetSlot);
         if(done) done();
-      }catch(e){ saveToast("Could not read that file"); }
+      }catch(e){ saveMsg("Could not read that file", true); }
     };
     reader.readAsText(file);
   }
   function loadSlotIntoGame(n){
     var s = readSlot(n);
     if(!s || !s.state) return false;
+    backupSlot(n);
     if(combat){ combat.active = false; combat = null; }
     setActiveSlot(n);
     state = mergeDefaults(s.state);
@@ -10833,17 +10921,27 @@ body.play-mode #quest-tracker .bt-row.done::before{ background:#9fffa8; }
     rebuildKeyLookup(); renderAll(); renderHudButtons(); applyMinimapPref();
     return true;
   }
-  function slotSummary(n){
-    var s = readSlot(n); if(!s || !s.state) return null;
+  function summaryOf(s){
     var st = s.state, cls = CLASS_DEFS[st.custom && st.custom.charClass] || CLASS_DEFS.fighter;
-    var d = new Date(s.savedAt || 0);
-    return { name: (st.custom && st.custom.name) || "Warden", cls: cls.name, level: st.level || 1, when: s.savedAt ? d.toLocaleString() : "" };
+    return { name: (st.custom && st.custom.name) || "Warden", cls: cls.name, level: st.level || 1, when: s.savedAt ? new Date(s.savedAt).toLocaleString() : "" };
   }
+  function slotSummary(n){ var s = readSlot(n); return (s && s.state) ? summaryOf(s) : null; }
   function renderSlots(){
     var list = document.getElementById("slot-list"); if(!list) return;
     var html = "";
     for(var n = 1; n <= SLOT_COUNT; n++){
-      var sm = slotSummary(n);
+      var ss = slotStatus(n);
+      if(ss.st === "damaged"){
+        var bk = readBackup(n), bs = bk ? summaryOf(bk) : null;
+        html += '<div class="slot-row damaged"><span class="slot-num">' + n + '</span><div class="slot-info"><div class="slot-name">Damaged save</div><div class="slot-meta">' +
+          (bs ? "This save can't be read. Its backup can be restored: " + bs.name + " &middot; " + bs.cls + " Lv " + bs.level + (bs.when ? ", saved " + bs.when : "") + "."
+              : "This save can't be read, and there is no backup. Export it to keep a copy, or import a save file over it.") +
+          '</div></div><div class="slot-btns">' + (bs ? '<button type="button" class="primary" data-slot-restore="' + n + '">Restore backup</button>' : '') +
+          '<button type="button" data-slot-export-raw="' + n + '">Export</button><button type="button" data-slot-import="' + n + '">Import</button>' +
+          '<button type="button" class="danger" data-slot-delete="' + n + '">Delete</button></div></div>';
+        continue;
+      }
+      var sm = ss.st === "ok" ? summaryOf(ss.save) : null;
       html += '<div class="slot-row' + (n === activeSlot && sm ? " active" : "") + '"><span class="slot-num">' + n + '</span><div class="slot-info">' +
         (sm ? '<div class="slot-name">' + sm.name + ' <span class="slot-meta">&middot; ' + sm.cls + ' Lv ' + sm.level + '</span></div><div class="slot-meta">Saved ' + sm.when + (n === activeSlot ? " &middot; active" : "") + '</div>'
             : '<div class="slot-name" style="color:var(--ink-faint)">Empty slot</div><div class="slot-meta">Start a new Warden here or import a save file.</div>') +
@@ -10852,6 +10950,8 @@ body.play-mode #quest-tracker .bt-row.done::before{ background:#9fffa8; }
         '<button type="button" data-slot-import="' + n + '">Import</button>' +
         (sm ? '<button type="button" class="danger" data-slot-delete="' + n + '">Delete</button>' : '') + '</div></div>';
     }
+     
+    if(slotNote && Date.now() < slotNote.until) html = '<div class="slot-note' + (slotNote.warn ? " bad" : "") + '" role="status">' + slotNote.text + '</div>' + html;
     list.innerHTML = html;
     var hint = document.getElementById("slot-hint");
     if(hint) hint.innerHTML = LAUNCHER ? "Saves are written to the <b>saves</b> folder next to the game's executable (and kept in this browser). Export makes a file copy; Import loads one into a slot."
@@ -10867,7 +10967,8 @@ body.play-mode #quest-tracker .bt-row.done::before{ background:#9fffa8; }
   function renderGameMenu(){
     var el = document.getElementById("save-note"); if(!el) return;
     var s = readSlot(activeSlot);
-    el.innerHTML = "Slot <b>" + activeSlot + "</b>" + (s && s.savedAt ? " &middot; last saved " + new Date(s.savedAt).toLocaleString() : "") + (LAUNCHER ? " &middot; files in the saves folder" : (fsDir ? " &middot; files in " + fsDirName : ""));
+    el.innerHTML = "Slot <b>" + activeSlot + "</b>" + (s && s.savedAt ? " &middot; last saved " + new Date(s.savedAt).toLocaleString() : "") + (LAUNCHER ? " &middot; files in the saves folder" : (fsDir ? " &middot; files in " + fsDirName : "")) +
+      (saveOk ? "" : ' <b class="save-bad">&middot; saving is failing: this browser’s storage is full. Save to File keeps a copy.</b>');
     renderFolderLine();
   }
 
@@ -16291,15 +16392,31 @@ var VHSprite = (function(){
     persist(); renderSkillArc(); renderClassSkillDetail();
   }
   function attackBubbleSkill(){ return bubbleSkill(activeBubbleSet(), 0); }
-   
-  function holdSkill(id){
+  
+
+
+
+  var holdFinger = { attack:null, skill:null };
+  function holdSkill(id, pointerId){
     if(!combat) return;
-    combat.heldSkill = id; combat.heldSkillNext = 0;
+    combat.heldSkill = id; combat.heldSkillNext = 0; holdFinger.skill = pointerId == null ? null : pointerId;
     if(!castSkillById(id, performance.now())) combat.heldSkillNext = performance.now() + 250;
   }
-  function releaseSkill(){ if(combat){ combat.heldSkill = null; combat.heldAttack = false; } }
+  function holdAttack(pointerId){
+    if(!combat) return;
+    combat.heldAttack = true; holdFinger.attack = pointerId == null ? null : pointerId;
+    tryAttack(performance.now());
+  }
+  function releaseSkill(){ if(combat){ combat.heldSkill = null; combat.heldAttack = false; } holdFinger.attack = holdFinger.skill = null; }
+  function releaseHoldOf(pointerId){
+    if(!combat) return;
+    if(holdFinger.skill === pointerId){ combat.heldSkill = null; holdFinger.skill = null; }
+    if(holdFinger.attack === pointerId){ combat.heldAttack = false; holdFinger.attack = null; }
+  }
   function cycleBubbleSet(){
-    releaseSkill();
+    
+
+    if(combat) combat.heldSkill = null; holdFinger.skill = null;
     state.bubbleSet = (activeBubbleSet() + 1) % BUBBLE_SETS; persist(); renderSkillArc();
     var b = document.getElementById("arc-set"); if(b){ b.classList.remove("flash"); void b.offsetWidth; b.classList.add("flash"); }
   }
@@ -21863,12 +21980,8 @@ var VHSprite = (function(){
       if(bubLight){
         bubLight.addEventListener("pointerdown", bubbleGuard(function(e){
           var ab = attackBubbleSkill();
-          if(ab){ holdSkill(ab.id); return; }
-          combat.heldAttack = true; tryAttack(performance.now());
+          if(ab) holdSkill(ab.id, e.pointerId); else holdAttack(e.pointerId);
         }));
-        ["pointerup","pointercancel","pointerleave"].forEach(function(evt){
-          bubLight.addEventListener(evt, function(){ releaseSkill(); });
-        });
       }
 
 
@@ -21891,12 +22004,43 @@ var VHSprite = (function(){
           if(btn.dataset.bind){ toggleWindow("skill"); return; }    
           if(!combat || !combat.active) return;
           var s = bubbleSkill(activeBubbleSet(), parseInt(btn.dataset.bub, 10));
-          if(s) holdSkill(s.id);
+          if(s) holdSkill(s.id, e.pointerId);
         });
-        ["pointerup","pointercancel","pointerleave"].forEach(function(evt){ arc.addEventListener(evt, function(){ releaseSkill(); }); });
-        window.addEventListener("pointerup", function(){ releaseSkill(); });
-        window.addEventListener("pointercancel", function(){ releaseSkill(); });
       }
+      
+
+
+      window.addEventListener("pointerup", function(e){ releaseHoldOf(e.pointerId); }, true);
+      window.addEventListener("pointercancel", function(e){ releaseHoldOf(e.pointerId); }, true);
+      ["touchend", "touchcancel"].forEach(function(evt){
+        window.addEventListener(evt, function(e){ if(!e.touches || !e.touches.length) releaseSkill(); }, true);
+      });
+      window.addEventListener("blur", function(){ releaseSkill(); });
+      document.addEventListener("visibilitychange", function(){ if(document.hidden) releaseSkill(); });
+      
+
+
+
+      var extraTaps = {}, tapClick = null;
+      var TAP_CTL = "button, a, input, select, label, [data-window], [data-pot], [data-close], .ms-cell, .eq-cell, .minimap";
+      window.addEventListener("pointerdown", function(e){
+        if(e.pointerType === "touch" && !e.isPrimary && !hudEditing) extraTaps[e.pointerId] = { el:e.target, x:e.clientX, y:e.clientY, t:e.timeStamp };
+      }, true);
+      window.addEventListener("pointercancel", function(e){ delete extraTaps[e.pointerId]; }, true);
+      window.addEventListener("pointerup", function(e){
+        var t = extraTaps[e.pointerId]; if(!t) return; delete extraTaps[e.pointerId];
+        if(hudEditing || !t.el.isConnected || e.timeStamp - t.t > 700 || Math.abs(e.clientX - t.x) > 18 || Math.abs(e.clientY - t.y) > 18) return;
+        var under = document.elementFromPoint(e.clientX, e.clientY); if(!under) return;
+        var a = t.el.closest ? (t.el.closest(TAP_CTL) || t.el) : t.el, b = under.closest ? (under.closest(TAP_CTL) || under) : under;
+        if(a !== b) return;                                    
+        tapClick = { el:t.el, at:performance.now() };
+        t.el.dispatchEvent(new MouseEvent("click", { bubbles:true, cancelable:true, view:window, detail:1, clientX:e.clientX, clientY:e.clientY }));
+      }, true);
+      window.addEventListener("click", function(e){
+        if(!e.isTrusted || !tapClick || performance.now() - tapClick.at > 600) return;
+        var el = tapClick.el;
+        if(e.target === el || (el.contains && el.contains(e.target)) || (e.target.contains && e.target.contains(el))){ tapClick = null; e.stopPropagation(); e.preventDefault(); }
+      }, true);
       var jobBubbles = document.getElementById("job-skill-bubbles");
       if(jobBubbles){
         jobBubbles.addEventListener("pointerdown", bubbleGuard(function(e){
@@ -22051,10 +22195,22 @@ var VHSprite = (function(){
         showSlots(false); renderCreator(); showScreen("creator"); return;
       }
       if((b = e.target.closest("[data-slot-export]"))){ exportSave(Number(b.dataset.slotExport)); return; }
+      if((b = e.target.closest("[data-slot-export-raw]"))){ exportDamaged(Number(b.dataset.slotExportRaw)); return; }
+      if((b = e.target.closest("[data-slot-restore]"))){
+        var rn = Number(b.dataset.slotRestore);
+        saveMsg(restoreBackup(rn) ? "Slot " + rn + " restored from its backup" : "Couldn't restore slot " + rn + ": this browser's storage is full", !readSlot(rn));
+        renderStartScreen(); return;
+      }
       if((b = e.target.closest("[data-slot-import]"))){ importTarget = Number(b.dataset.slotImport); document.getElementById("import-file").value = ""; document.getElementById("import-file").click(); return; }
       if((b = e.target.closest("[data-slot-delete]"))){
         var dn = Number(b.dataset.slotDelete);
-        if(b.dataset.armed){ deleteSlot(dn); if(dn === activeSlot && !state.created){} renderSlots(); renderStartScreen(); return; }
+        if(b.dataset.armed){
+          deleteSlot(dn);
+          
+
+          if(dn === activeSlot && state.created){ if(combat){ combat.active = false; combat = null; } state = mergeDefaults({}); rebuildKeyLookup(); renderAll(); renderHudButtons(); }
+          renderSlots(); renderStartScreen(); return;
+        }
         b.dataset.armed = "1"; b.textContent = "Really delete?"; setTimeout(function(){ delete b.dataset.armed; b.textContent = "Delete"; }, 3000); return;
       }
     });
@@ -22073,8 +22229,16 @@ var VHSprite = (function(){
     document.getElementById("gm-save-btn").addEventListener("click", saveGameNow);
     document.getElementById("gm-export-btn").addEventListener("click", function(){ exportSave(activeSlot); });
     document.getElementById("gm-import-btn").addEventListener("click", function(){ importTarget = activeSlot; document.getElementById("import-file").value = ""; document.getElementById("import-file").click(); });
-    document.getElementById("gm-title-btn").addEventListener("click", function(){
-      persist(); saveToast("Saved");
+    document.getElementById("gm-title-btn").addEventListener("click", function(e){
+       
+      var tb = e.currentTarget;
+      if(!persist() && !tb.dataset.armed){
+        saveFailed(true); tb.dataset.armed = "1"; tb.textContent = "Not saved: click again to leave";
+        setTimeout(function(){ delete tb.dataset.armed; tb.textContent = "Save & Return to Title"; }, 4000);
+        return;
+      }
+      delete tb.dataset.armed; tb.textContent = "Save & Return to Title";
+      if(saveOk) saveToast("Saved");
       if(combat){ combat.active = false; combat = null; }
       GAME_WINDOWS.forEach(function(w){ closeWindow(w); });
       renderStartScreen(); showSlots(false); showScreen("start");
@@ -22144,13 +22308,18 @@ var VHSprite = (function(){
       window.claude.hot.ready(function(){ start(window.claude.hot.data || {}); });
     } else {
       var boot = function(){
-        var saved = {};
-        var slot = readSlot(activeSlot);
-        if(slot && slot.state) saved = slot.state;
-        else {
+        var saved = {}, ss = slotStatus(activeSlot);
+        
+
+        if(ss.st === "empty") for(var n = 1; n <= SLOT_COUNT; n++){ var s2 = slotStatus(n); if(s2.st === "ok"){ setActiveSlot(n); ss = s2; break; } }
+        if(ss.st === "ok"){ saved = ss.save.state; backupSlot(activeSlot); }
+        else if(noSlotSaves()){
            
-          try{ var raw = localStorage.getItem(SAVE_KEY); if(raw){ saved = JSON.parse(raw); if(saved && saved.created){ setActiveSlot(1); writeSlot(1, saved); } } }catch(e){}
+          var old = null; try{ old = JSON.parse(localStorage.getItem(SAVE_KEY)); }catch(e){}
+          if(old && old.created){ setActiveSlot(1); writeSlot(1, old); saved = old; }
         }
+         
+        if(!noSlotSaves()) lsDel(SAVE_KEY);    
         start(saved);
       };
       if(LAUNCHER){
@@ -23286,7 +23455,7 @@ var VHSprite = (function(){
 <script>
 /* installable app: register the service worker for offline play, check for a new build on every launch, and reload
    once when a new build takes over so the update shows without a second launch */
-var VH_BUILD = "v67 · Sep 29";
+var VH_BUILD = "v68 · Sep 29";
 if("serviceWorker" in navigator){
   window.addEventListener("load", function(){
     var reloaded = false;
