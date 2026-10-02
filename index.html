@@ -342,7 +342,7 @@
 
 
   .game-viewport{ --ar:2; position:relative; display:flex; flex-direction:column; gap:10px;
-    width:min(100%, max(640px, calc((100vh - 420px) * var(--ar)))); margin:0 auto; }
+    width:min(100%, max(640px, calc((100vh - var(--vp-above, 420px)) * var(--ar)))); margin:0 auto; }   
   @media (max-width:820px){ .game-viewport{ --ar:1.5; } }
   @media (max-width:520px){ .game-viewport{ --ar:1.05; } }
   .viewport-stage{ position:relative; }
@@ -978,6 +978,8 @@
   .token.enemy.boss .tk-name{ color:#ffd27f; font-weight:700; text-shadow:0 0 6px rgba(255,180,60,.6), 0 1px 0 #000; }
   .token.enemy.boss .tk-name::before{ content:"\2655  "; }
   .token.enemy.boss .tk-hp{ transform:scaleX(2.2); transform-origin:50% 50%; }
+  
+  #arena-wrap.has-boss .world-toast{ top:46px; z-index:13; }
   #boss-bar{ position:absolute; left:50%; top:6px; transform:translateX(-50%); width:min(46%, 520px); z-index:12; pointer-events:none; text-align:center; }
   #boss-bar .bb-name{ font:700 12px/1.3 "DejaVu Sans Mono", monospace; color:#ffd27f; text-shadow:0 1px 0 #000, 0 0 8px rgba(255,180,60,.5); margin-bottom:3px; }
   #boss-bar .bb-track{ height:9px; border-radius:6px; background:rgba(0,0,0,.6); border:1px solid rgba(255,210,127,.55); overflow:hidden; }
@@ -1679,6 +1681,9 @@
 
   .vfx{ position:absolute; pointer-events:none; overflow:hidden; z-index:4; }
   .vfx.vfx-back{ z-index:1; }
+  
+  .vfx.vfx-el-poison{ filter:hue-rotate(95deg) saturate(1.3); } .vfx.vfx-el-holy{ filter:sepia(.6) saturate(2) brightness(1.15); }
+  .vfx.vfx-el-arcane{ filter:hue-rotate(230deg); } .vfx.vfx-spit{ filter:hue-rotate(80deg) saturate(1.4) brightness(.9); }
   .vfx > i{ position:absolute; left:0; top:0; height:100%; display:block; background-size:100% 100%; background-repeat:no-repeat;
     image-rendering:pixelated; image-rendering:crisp-edges; animation-name:vfx-play; animation-fill-mode:forwards; will-change:transform; }
   .vfx.vfx-fly{ z-index:5; transition-property:left, top; transition-timing-function:linear; }
@@ -2055,6 +2060,8 @@ body.play-mode #quest-tracker .bt-row.done::before{ background:#9fffa8; }
     body.play-mode .hud-pots{ right:auto; left:calc(10px + var(--sl)); bottom:calc(132px + var(--sb)); }
     body.play-mode .skill-bubble.bb-light .sb-lbl{ font-size:8px !important; }
     body.play-mode #boss-bar{ left:calc(8px + var(--sl)); width:calc(100vw - 16px - var(--sl) - var(--sr)); top:calc(150px + var(--hy) + var(--st)); }
+    
+    body.play-mode .hud-bars .hud-unit:nth-child(3) .mval{ right:auto; left:50%; transform:translateX(-50%); }
   }
   @media (orientation:portrait) and (max-width:430px){ body.play-mode:not(.hud-custom) .jump-btn{ width:48px !important; height:48px !important; } }
   
@@ -2174,6 +2181,8 @@ body.play-mode #quest-tracker .bt-row.done::before{ background:#9fffa8; }
   body.ui-skin .game-window .ms-equip{ border:0; border-radius:0; background:transparent; }
   body.ui-skin .game-window .ms-cell, body.ui-skin .ms-modal .ms-cell{ background:var(--k-slot); border:1px solid var(--k-slot-line); border-radius:var(--k-slot-radius); box-shadow:var(--k-slot-bevel); }
   body.ui-skin .game-window .ms-cell.empty{ background:var(--k-slot-empty); box-shadow:inset 0 1px 2px rgba(0,0,0,.35); }
+  
+  body.ui-skin .game-window .ms-equip .eq-cell.empty:not(.pet-cell){ background:color-mix(in srgb, var(--k-slot-empty) 40%, transparent); box-shadow:none; }
   body.ui-skin .game-window .ms-cell[style*="--rc"]{ border-color:color-mix(in srgb, var(--rc) 62%, var(--k-slot-line)); box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--rc) 22%, transparent), var(--k-slot-bevel); }
   body.ui-skin .game-window .ms-cell:not(.empty):hover, body.ui-skin .game-window .ms-cell.hover{ background:var(--k-row-hi); border-color:var(--k-hi); }
   body.ui-skin .game-window .ms-cell .ms-count{ color:#fff; text-shadow:1px 1px 0 #000, -1px 0 0 #000, 0 -1px 0 #000; }
@@ -13460,7 +13469,7 @@ body.play-mode #quest-tracker .bt-row.done::before{ background:#9fffa8; }
     var remaining = classSkillSPRemaining();
     el.innerHTML = [0,1,2,3,4].map(function(t){
       var reached = ritesOn() ? t <= cur : state.level >= jobTierLevel(t);    
-      var shown = (classTab === null || classTab === undefined) ? Math.max(1, cur) : classTab;
+      var shown = classTabNow();
       return '<div class="jt-pip' + (reached ? " reached" : "") + (t === cur ? " current" : "") + (t === shown ? " tab-on" : "") + '" data-tier="' + t + '" style="--node-color:' + cls.color + '">' +
         '<span class="jt-name">' + (t === 0 ? "Beginner" : (isBeginnerChar() ? JOB_TIER_NAMES[t] : jobTitle(t))) + '</span>' +
         '<span class="jt-lv">' + JOB_TIER_NAMES[t] + ' &middot; Lv ' + (ritesOn() ? riteLevel(t, isBeginnerChar() ? null : cls.id) || 1 : jobTierLevel(t)) + (reached ? " &#10003;" : "") + '</span>' +
@@ -13469,6 +13478,13 @@ body.play-mode #quest-tracker .bt-row.done::before{ background:#9fffa8; }
   }
 
   var classTab = null;    
+  var classTabJob = null;    
+  function classTabNow(){
+    var key = (isBeginnerChar() ? "b" : "c") + jobTier();
+    if(classTabJob !== key){ classTabJob = key; classTab = null; }
+    if(classTab === null || classTab === undefined || classTab < 0) classTab = isBeginnerChar() ? 0 : Math.max(1, jobTier());
+    return classTab;
+  }
   function branchLabel(cls, branchId){
     var opts = BRANCH_CHOICES[cls.id] || [];
     for(var i = 0; i < opts.length; i++) if(opts[i].id === branchId) return opts[i].name;
@@ -13481,7 +13497,7 @@ body.play-mode #quest-tracker .bt-row.done::before{ background:#9fffa8; }
     var svg = document.getElementById("class-tree-lines");
     if(svg) svg.innerHTML = "";
     var cur = jobTier();
-    if(classTab === null || classTab === undefined || classTab < 0) classTab = isBeginnerChar() ? 0 : Math.max(1, cur);
+    classTabNow();
     var remaining = classSkillSPRemaining();
     var chosen = state.jobBranch && state.jobBranch[cls.id];
     var nodes = (isBeginnerChar() && classTab > 0) ? [] : SKILLS.filter(function(s){ return s.classId === cls.id && s.tier === classTab && (!s.branch || !chosen || s.branch === chosen); });    
@@ -15630,7 +15646,8 @@ var VHSprite = (function(){
   function switchMap(idx, fromId, at){
     if(idx === (state.mapIdx || 0)) return;
     var leavingId = MAPS[state.mapIdx || 0] ? MAPS[state.mapIdx || 0].id : null;
-    if(typeof vfxClear === "function") vfxClear();    
+    if(typeof vfxClear === "function") vfxClear();
+    if(typeof mobShotsClear === "function") mobShotsClear();        
     state.mapIdx = idx; state.mapId = MAPS[idx].id; syncWorld();
     if(typeof closeWindow === "function") closeWindow("npc");    
     state.visited = state.visited || {}; state.visited[MAPS[idx].id] = true;
@@ -15993,6 +16010,7 @@ var VHSprite = (function(){
     var arena = document.getElementById("arena"); if(!arena) return;
     var bar = document.getElementById("boss-bar");
     var boss = combat && combat.active ? combat.enemies.filter(function(m){ return m.boss && m.state === "alive"; }).sort(function(a, b){ return (a.elite ? 1 : 0) - (b.elite ? 1 : 0); })[0] : null;
+    var wrapEl = document.getElementById("arena-wrap"); if(wrapEl) wrapEl.classList.toggle("has-boss", !!boss);    
     if(!boss){ if(bar) bar.remove(); return; }
     if(!bar){ bar = document.createElement("div"); bar.id = "boss-bar"; bar.innerHTML = '<div class="bb-name"></div><div class="bb-track"><i></i></div>'; arena.appendChild(bar); }
     var nm = bar.querySelector(".bb-name"), fill = bar.querySelector(".bb-track i");
@@ -16978,7 +16996,7 @@ var VHSprite = (function(){
     var dark = isDarkMap(), hpK = dark ? DARK_HP : (isNightMap() ? 1.1 : 1), dmgK = dark ? DARK_DMG : (isNightMap() ? 1.1 : 1), expK = dark ? DARK_EXP : (isNightMap() ? 1.15 : 1);
     var boss = !!sp.boss, down = sp.elite ? eliteDownFor(sp.elite) : (boss ? bossDownFor() : 0);
     if(boss){ baseHp = bossStatAt("hp", lv) * (sp.elite ? ELITE_HP_MULT : 1); baseDmg = baseDmg * 1.6; }
-    return echoSetup(assignMonsterMagic({    
+    return echoSetup(mobAttackSetup(assignMonsterMagic({    
       spawnIdx: idx, type: sp.type || "wraith", x: sp.x, y: sp.y, vy: 0, onGround: true, standingOn: null, elite: sp.elite || null,
       level: lv, pdr: Math.round(boss ? bossStatAt("pdr", lv) : monsterStatAt("pdr", lv)), exp: Math.round((boss ? bossStatAt("exp", lv) : monsterStatAt("exp", lv)) * expK),
       hpMax: Math.round(baseHp * mt.hpMult * hpK), hp: Math.round(baseHp * mt.hpMult * hpK),
@@ -16991,7 +17009,7 @@ var VHSprite = (function(){
       patrolDir: Math.random() < 0.5 ? -1 : 1,
       patrolAt: performance.now() + 1000 + Math.random()*2000,
       bleedStacks:0, bleedPerStack:0, bleedExpire:0, bleedTickAt:0
-    }), sp);
+    })), sp);
   }
 
   
@@ -17156,7 +17174,7 @@ var VHSprite = (function(){
     };
     measureView();
     updateCombatUI(); tickMerchantHint();
-    vfxClear(); vfxWarm();    
+    vfxClear(); vfxWarm(); mobShotsClear();    
     requestAnimationFrame(combatLoop);
   }
 
@@ -17817,13 +17835,15 @@ var VHSprite = (function(){
   function respawnPlayer(){
     combat.hp = combat.hpMax;
     if(typeof cureStatuses === "function") cureStatuses();    
+    combat.knockVX = 0; combat.vx = 0;    
     combat.x = 150; combat.y = groundTop(150); combat.vy = 0; combat.onGround = true; combat.standingOn = null; combat.footX = undefined;    
     combat.climb = null; combat.climbMoving = false;
     combat.combo = 0; combat.comboExpireAt = 0;
     updateCamera(null);
     var xpPenalty = Math.round(state.xp * 0.05);
     if(xpPenalty > 0) state.xp = Math.max(0, state.xp - xpPenalty);
-    worldToast("Fainted — back to the Hall" + (xpPenalty > 0 ? " (-" + xpPenalty + " XP)" : ""));
+    var mp = currentMap();    
+    worldToast("Fainted — you wake at the edge of " + ((mp && mp.name) || "the map") + (xpPenalty > 0 ? " (-" + xpPenalty + " XP)" : ""));
     riteOnFaint();    
     persist();
     renderHud(); renderCharacterPanel();
@@ -17903,7 +17923,7 @@ var VHSprite = (function(){
         if(ts >= m.respawnAt){
           var sp = m.boss ? currentMap().spawns[m.spawnIdx] : rerollSpawn(m.spawnIdx);           
           if(m.boss) spawnFloat(sp.x, sp.y - FLOAT_Y - 80, monsterType(m).name + " has appeared!", "#ffd27f");
-          m.state = "alive"; m.hp = m.hpMax; m.x = sp.x; m.y = sp.y; m.vy = 0; m.onGround = true; m.standingOn = null; m.footX = undefined;
+          m.state = "alive"; m.telegraph = false; m.hp = m.hpMax; m.x = sp.x; m.y = sp.y; m.vy = 0; m.onGround = true; m.standingOn = null; m.footX = undefined;
           m.nextAttack = ts + 1200 + Math.random()*1000;
         }
         return;
@@ -17942,7 +17962,8 @@ var VHSprite = (function(){
       else if(ts < (m.hitstunUntil || 0)){
         m.x = clamp(m.x + (m.knockVX || 0)*dt, sp.kMin !== undefined ? sp.kMin : sp.xMin - 40, sp.kMax !== undefined ? sp.kMax : sp.xMax + 40);
         m.knockVX = (m.knockVX || 0) * 0.9;
-      } else if(pdist < (m.chaseRange || 220) && Math.abs(toY) < 117){
+      } else if(m.telegraph){   }
+      else if(pdist < (m.chaseRange || 220) && Math.abs(toY) < 117){
         var dir = toX > 0 ? 1 : -1;
         m.x = clamp(m.x + dir*0.072*(m.speedMult||1)*slowMult*monSlope(m, dir)*dt, sp.xMin, sp.xMax);
         m.facing = dir > 0 ? "right" : "left";
@@ -17954,23 +17975,8 @@ var VHSprite = (function(){
       if(m.onGround && m.vy >= 0) followGround(m);    
 
       var canAttack = !own && !m.passive && !mHas(m, "sealUntil", ts) && !mHas(m, "doomUntil", ts) && !mHas(m, "hypnoUntil", ts) && !!tgt;
-      if(canAttack && ts >= m.nextAttack && !m.telegraph && ts >= (m.hitstunUntil || 0)){ m.telegraph = true; m.telegraphAt = ts; }
-      if(!own && m.telegraph && ts - m.telegraphAt > 350){
-        m.telegraph = false;
-        var dist2 = tgt ? Math.hypot(tgt.x-m.x, tgt.y-m.y) : Infinity;
-         
-        var reach = m.magic ? m.magicRange : (m.atkRange || 70), spell = !!m.magic;
-        if(spell && tgt && dist2 < reach){ vfx("cast_arcane", m.x, m.y - vfxMid(m), { scale: 1.2 }); }    
-        if(tgt === combat.puppet && tgt && dist2 < reach){
-          tgt.hp -= m.dmg; spawnDamageNumber(tgt, Math.round(m.dmg), "normal");
-          if(tgt.hp <= 0){ tgt.until = 0; combat.puppet = null; }
-        } else if(tgt && dist2 < reach && ts < (combat.hurtUntil || 0)){
-           
-        } else if(tgt && dist2 < reach){
-          monsterStrike(m, ts, d, spell);
-        }
-        m.nextAttack = ts + 1400 + Math.random()*900;
-      }
+       
+      mobAttackTick(m, ts, d, tgt, canAttack, own);
 
       if(m.bleedStacks > 0){
         if(ts > m.bleedExpire){
@@ -17987,6 +17993,7 @@ var VHSprite = (function(){
     });
 
     combat.aether = Math.min(combat.aetherMax, combat.aether + 0.012*dt);
+    mobShotsTick(ts, dt, d);    
     tickSummons(ts, d); tickZones(ts, d); tickRegen(ts); tickStatuses(ts);    
     if(combat.glideUntil && ts < combat.glideUntil && !combat.onGround) combat.vy = Math.min(combat.vy, 0.06);
     if(combat.buffs){ Object.keys(combat.buffs).forEach(function(id){ if(ts > combat.buffs[id].until) delete combat.buffs[id]; }); }
@@ -18029,7 +18036,7 @@ var VHSprite = (function(){
             dmg = Math.round(dmg * (1 - Math.min(80, skEff("dmgTakenPct")) / 100));
             if(spell){ vfx("hit_magic", combat.x, combat.y - 46, { scale: 1.3 }); }    
              
-            var rf = spell ? 0 : Math.min(60, skEff("reflectPct"));
+            var rf = (spell || m.state !== "alive") ? 0 : Math.min(60, skEff("reflectPct"));    
             if(rf > 0){ var back = Math.round(dmg * rf / 100); dmg -= back; m.hp = Math.max(0, m.hp - back); spawnFloat(m.x, m.y - FLOAT_Y, "-" + back, "#ffe9ad"); if(m.hp <= 0) killMonster(m, ts); }
              
             var mg = Math.min(100, skEff("magicGuardPct"));
@@ -26156,7 +26163,7 @@ var VHSprite = (function(){
     Object.keys(want).forEach(function(k){
       if(have[k]) return;
       var dy = k === "st_burn" ? 0 : k === "st_poison" ? vfxMid(m) : vfxHead(m) - 6;
-      have[k] = vfxOn(k, m, dy, { scale: k === "st_burn" ? 1.2 : 0.8, back: k === "st_burn" });
+      have[k] = vfxOn(k, m, dy, { scale: k === "st_burn" ? 1.2 : 0.8, back: k === "st_burn", must: true });    
       if(!have[k]) delete have[k];
     });
   }
@@ -26987,6 +26994,150 @@ var VHSprite = (function(){
       ctx.clearRect(0, 0, cv.width, cv.height); ctx.drawImage(fr, 0, 0, cv.width, cv.height);
     }
   }
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  var VH_MOBATK = {"v":82,"k":{"abbot":["c",59,119],"anvilbrute":["m",105,85],"ashwarden":["c",59,119],"barrowhound":["m",83,53],"bastionknight":["h",156,119],"boghulk":["m",115,89],"bogwarden":["m",105,79],"bonewright":["c",53,91],"boss_bastion":["b",250,196],"boss_beyond":["b",313,241],"boss_cathedral":["b",144,242],"boss_choir":["b",114,209],"boss_cistern":["b",209,91],"boss_clockwell":["b",128,218],"boss_court":["b",281,214],"boss_delta":["b",285,137],"boss_dojo":["b",133,266],"boss_forge":["b",266,205],"boss_gate":["b",133,100],"boss_gloomdeep":["b",233,150],"boss_gloomwood":["b",216,139],"boss_orchard":["b",190,77],"boss_quarry":["b",116,195],"boss_reach":["b",195,119],"boss_road":["b",266,205],"boss_row":["b",204,128],"boss_ruins":["b",114,223],"boss_spire":["b",228,129],"boss_star":["b",199,154],"boss_streetlight":["b",138,255],"boss_terrace":["b",281,217],"boss_undercroft":["b",139,237],"boss_veil":["b",103,206],"boss_ward":["b",139,113],"boundless":["m",105,79],"bowerwasp":["t",40,79],"brambleboar":["t",85,53],"brinewraith":["t",63,26],"cantor":["c",48,93],"castellan":["h",172,131],"causewaymoth":["t",76,61],"caveslime":["t",52,39],"cellarbones":["r",50,93],"cellarcrawler":["m",109,62],"chancellor":["c",48,93],"choirmaster":["c",72,123],"chorister":["c",63,26],"cinderbat":["t",69,55],"cinderdrake":["m",126,97],"cinderling":["t",40,79],"cinderwing":["t",40,79],"cliffskitter":["m",81,50],"clockworkcrab":["m",114,69],"courtier":["t",48,36],"craterhulk":["m",105,87],"cultist":["r",50,93],"deepcaller":["c",55,93],"deltaking":["h",180,79],"deltawraith":["t",48,36],"drakewarden":["h",156,119],"drowned":["m",136,57],"drowsybones":["r",50,93],"echo_ashpage":["t",50,37],"echo_bilgecrab":["t",96,50],"echo_canopymoth":["t",71,73],"echo_crewman":["t",52,102],"echo_garrison":["t",61,102],"echo_roofshade":["t",52,39],"echo_shade":["m",58,98],"echo_skywing":["t",82,84],"echo_spellfire":["t",76,61],"echo_warhound":["t",87,56],"echo_watch":["t",50,100],"echoself":["h",54,84],"elite_amberchief":["h",84,158],"elite_bluechief":["h",84,158],"elite_greysage":["c",100,200],"elite_hourkeeper":["c",250,193],"elite_ladyrue":["h",149,108],"elite_mosschief":["h",84,158],"elite_nameless":["h",281,221],"elite_oldpincer":["h",191,108],"elite_oldstripe":["h",173,118],"elite_wallsinger":["c",234,184],"emberdrake":["m",126,95],"emberghast":["t",48,36],"emberimp":["t",48,36],"fallenlight":["h",121,100],"fenbones":["r",62,124],"fensinger":["c",53,91],"fjordraider":["r",156,121],"forgemaster":["h",156,123],"forgepriest":["c",53,91],"fossilbones":["r",75,128],"galemoth":["t",75,77],"gallowscrab":["m",106,64],"gaslightknight":["h",164,127],"gaslightwisp":["t",44,87],"ghostarcher":["r",48,93],"ghostashigaru":["m",85,53],"ghostbosun":["m",131,54],"ghostcannoneer":["r",53,91],"ghostcaptain":["h",75,126],"ghostcorsair":["m",50,93],"ghostdeckhand":["t",48,36],"ghostronin":["m",50,93],"ghostsamurai":["m",64,118],"ghostshogun":["h",80,135],"glassbinder":["c",48,95],"glassslime":["t",57,43],"gloomhound":["t",85,53],"gravewisp":["t",40,79],"hedgesnail":["t",55,44],"hollowknight":["h",62,116],"hollowsentry":["m",55,93],"hollowslime":["t",63,26],"hourglasshulk":["m",105,83],"hourwasp":["t",78,80],"husk":["t",64,107],"icehound":["m",83,57],"kerbwarden":["m",105,87],"lamplighter":["c",50,93],"lampshade":["t",48,36],"lanternwarden":["m",114,64],"lanternwisp":["t",40,79],"lastlight":["h",156,119],"leech":["t",48,36],"magmahulk":["m",105,79],"marcher":["m",50,93],"marrowhulk":["m",115,94],"memoryguardian":["h",156,119],"memorysentinel":["r",64,109],"minerbones":["r",55,109],"mirrorwraith":["t",57,42],"mistcaller":["c",48,95],"mothling":["t",40,79],"nesthulk":["m",105,83],"nestwarden":["h",156,121],"nullwisp":["t",69,55],"oblivionguardian":["h",156,123],"oblivionsentinel":["r",62,116],"orchardkeeper":["m",72,121],"ossuarian":["m",64,121],"pageling":["t",69,55],"palanquin":["m",105,79],"paperghost":["t",55,41],"pewwarden":["m",104,59],"pillarwarden":["m",105,87],"practicedummy":["n",61,87],"prismguard":["m",131,54],"pyrecaller":["c",55,93],"quarryman":["m",110,67],"reachlord":["h",72,123],"reedcrab":["m",104,46],"reedskitter":["m",95,46],"regent":["h",156,121],"regretguardian":["h",156,121],"regretwisp":["t",73,58],"revenant":["m",50,93],"ridgewasp":["t",42,83],"riftmaw":["t",40,79],"roadwarden":["h",156,119],"roadwisp":["t",71,73],"rotslime":["t",52,39],"saltbishop":["h",156,121],"saltmite":["t",71,42],"saltpriest":["c",53,91],"shaftboar":["m",83,57],"shardling":["t",48,36],"shorehog":["t",89,56],"siegecaster":["r",48,95],"skitterling":["t",50,42],"slagshade":["t",83,51],"slagwarden":["c",48,95],"spirewarden":["h",72,123],"sporeslime":["t",48,36],"stardrowned":["t",63,26],"stonecrab":["m",152,63],"stonesentinel":["r",64,121],"stormbones":["r",50,100],"terracelord":["h",156,121],"theabsence":["h",180,141],"throneguard":["h",156,119],"tidecaller":["c",48,95],"tidecrawler":["t",105,44],"tinwasp":["t",69,55],"tollkeeper":["c",50,93],"unmade":["t",48,36],"unmadehulk":["m",126,95],"veilspeaker":["c",48,93],"veilstalker":["t",75,51],"voidsentinel":["r",62,121],"wallcrawler":["t",53,44],"widowshade":["t",48,36],"windupcrab":["m",105,44],"wraith":["t",48,36]}};
+  var MOBATK = (VH_MOBATK && VH_MOBATK.k) || {};
+  var WARD_HW = 23, WARD_H = 85;                   
+  var SPELL_UP = 130;                              
+  var CAST_MS = 750, SHOT_SPEED = 0.40, FAR_LEN = 300, BOSS_FAR_LEN = 380, FAR_V = 60, BOSS_FAR_V = 120, TOUCH_RETRY = 1000;
+  var MOB_SHOTS = [];
+  var MOB_EL = [[/ember|cinder|pyre|forge|slag|magma|anvil|fire|crater|terrace|tyrant/i, "fire"], [/frost|ice|glass|prism|star|mirror/i, "ice"],
+                [/storm|gale|spire|clock|hour|gaslight|lamp|light/i, "lightning"], [/rot|bog|fen|spore|delta|reed|moss|orchard|widow|nest/i, "poison"],
+                [/salt|choir|cantor|chorister|abbot|bishop|priest|holy|cathedral|amber/i, "holy"]];
+  function mobElement(m){ var n = (MONSTER_TYPES[m.type] && MONSTER_TYPES[m.type].name || "") + " " + m.type; for(var i = 0; i < MOB_EL.length; i++) if(MOB_EL[i][0].test(n)) return MOB_EL[i][1]; return "arcane"; }
+  function mobShotKey(m, spell){
+    var n = (MONSTER_TYPES[m.type] && MONSTER_TYPES[m.type].name || "") + " " + m.type;
+    if(spell){ var el = mobElement(m); return el === "poison" || el === "arcane" ? "pj_arcane" : "pj_" + el; }
+    if(/archer|yumi|raider|bow/i.test(n)) return "pj_arrow";
+    if(/cannon|siege/i.test(n)) return "pj_meteor";
+    return "pj_energy";                             
+  }
+   
+  function mobAttackSetup(m){
+    var mt = MONSTER_TYPES[m.type] || {}, row = MOBATK[m.type];
+    var p = row ? row[0] : (m.boss ? "b" : (mt.passive ? "n" : "t"));
+    var bw = row ? row[1] : 50, bh = row ? row[2] : 60;
+    if(!row && typeof vfxBodyH === "function"){ bh = Math.round(vfxBodyH(m)); bw = Math.round(bh * 0.8); }
+    var big = p === "b";
+    var A = { p: p, bw: bw, bh: bh, melee: p === "m" || p === "h" || big,
+              meleeLen: big ? Math.max(50, Math.min(120, Math.round(bw * 0.35))) : Math.max(28, Math.min(70, Math.round(bw * 0.4))),
+              far: null, farLen: big ? BOSS_FAR_LEN : FAR_LEN, farV: big ? BOSS_FAR_V : FAR_V };
+    if(p === "c"){ A.far = "spell"; if(!m.magic){ m.magic = true; m.mad = Math.round(m.dmg * 1.125); } }
+    else if(p === "h" || p === "b") A.far = m.magic ? "spell" : (p === "b" ? "shot" : null);
+    else if(p === "r") A.far = m.magic ? "bolt" : "shot";
+    else if((p === "t" || p === "m") && m.magic){ A.far = "shot"; m.magic = false; m.spit = true; }    
+    if(p === "h" && !A.far) A.far = "shot";
+    if(p === "n") A.melee = false, A.far = null;
+    m.magicRange = A.far === "spell" || A.far === "bolt" ? A.farLen : null;
+    m.atk = A;
+    return m;
+  }
+   
+  function mobBodyBox(m){ var A = m.atk, hw = A.bw / 2; return { l: m.x - hw, r: m.x + hw, t: m.y - A.bh, b: m.y }; }
+  function wardBodyBox(t){ return { l: t.x - WARD_HW, r: t.x + WARD_HW, t: t.y - WARD_H, b: t.y }; }
+  function boxesMeet(a, b, pad){ pad = pad || 0; return a.l - pad < b.r && b.l - pad < a.r && a.t - pad < b.b && b.t - pad < a.b; }
+  function mobDirTo(m, t){ return t.x >= m.x ? 1 : -1; }
+  function mobMeleeBox(m, dir){
+    var A = m.atk, front = m.x + dir * A.bw / 2, x1 = front - dir * 14, x2 = front + dir * A.meleeLen;
+    return { l: Math.min(x1, x2), r: Math.max(x1, x2), t: m.y - A.bh - 10, b: m.y + 8 };
+  }
+  function mobShotLine(m){ return m.y - Math.min(m.atk.bh * 0.5, 45); }
+  function mobInFar(m, t, dir){
+    var A = m.atk, fx = (t.x - m.x) * dir;
+    if(fx < -WARD_HW || fx - WARD_HW > A.farLen) return false;
+    if(A.far === "spell") return Math.abs(t.y - m.y) <= A.farV;
+    var ly = mobShotLine(m), w = wardBodyBox(t); return ly >= w.t - 10 && ly <= w.b + 10;
+  }
+   
+  function mobBlow(m, tgt, ts, d, spell){
+    if(tgt === combat.puppet){
+      tgt.hp -= m.dmg; spawnDamageNumber(tgt, Math.round(m.dmg), "normal");
+      if(tgt.hp <= 0){ tgt.until = 0; combat.puppet = null; }
+      return 1;
+    }
+    if(ts < (combat.hurtUntil || 0)) return 0;
+    return monsterStrike(m, ts, d, spell) || -1;
+  }
+   
+  function mobAttackTick(m, ts, d, tgt, canAttack, own){
+    var A = m.atk; if(!A || own || m.passive) return;
+     
+    if(tgt && !mHas(m, "hypnoUntil", ts) && ts >= (m.touchNext || 0) && boxesMeet(mobBodyBox(m), wardBodyBox(tgt), -2)){
+      if(mobBlow(m, tgt, ts, d, false)) m.touchNext = ts + TOUCH_RETRY;
+    }
+     
+    if(canAttack && tgt && !m.telegraph && ts >= m.nextAttack && ts >= (m.hitstunUntil || 0)){
+      var dir = mobDirTo(m, tgt), kind = null;
+      if(A.melee && boxesMeet(mobMeleeBox(m, dir), wardBodyBox(tgt))) kind = "melee";
+      else if(A.far && mobInFar(m, tgt, dir)) kind = A.far;
+      if(kind){
+        m.facing = dir > 0 ? "right" : "left"; m.atkDir = dir; m.atkKind = kind;
+        m.telegraph = true; m.telegraphAt = ts;
+        var sk = MONSTER_TYPES[m.type] && MONSTER_TYPES[m.type].sprite, animMs = sk && typeof mobAnimMs === "function" ? mobAnimMs(sk, "attack") : 0;
+        m.atkWind = kind === "spell" ? CAST_MS : Math.max(380, Math.min(800, Math.round((animMs || 700) * 0.55)));
+        if(kind === "spell"){
+          var el = mobElement(m), rune = el === "fire" ? "rune_fire" : el === "ice" ? "rune_ice" : "rune_storm";
+          m.signX = tgt.x; m.signY = tgt.y;
+          vfx("cast_" + el, m.x, m.y - vfxMid(m), { scale: 1.2 });
+          var f = VFX[rune], speed = f ? (f.n * 1000 / ((f.fps || 15) * CAST_MS)) : 1;
+          m.signFx = vfx(rune, m.signX, m.signY - 6, { scale: A.p === "b" ? 2.2 : 1.5, back: true, speed: speed, must: true, cls: "vfx-el-" + el });
+        }
+      } else m.nextAttack = ts + 200;             
+    }
+    if(m.telegraph && ts - m.telegraphAt >= (m.atkWind || 350)){
+      m.telegraph = false;
+      var k = m.atkKind, dir2 = m.atkDir || (m.facing === "left" ? -1 : 1);
+      if(k === "melee"){
+        if(tgt && boxesMeet(mobMeleeBox(m, dir2), wardBodyBox(tgt))) mobBlow(m, tgt, ts, d, false);
+      } else if(k === "spell"){
+        var el2 = mobElement(m), hitKey = VFX["hit_" + el2] ? "hit_" + el2 : "hit_magic";
+        if(m.signFx){ vfxDrop(m.signFx); m.signFx = null; }
+        vfx(A.p === "b" && VFX["aoe_" + el2] ? "aoe_" + el2 : hitKey, m.signX, m.signY - 30, { scale: A.p === "b" ? 1.4 : 1.1, must: true });
+        
+
+        var zone = { l: m.signX - (A.p === "b" ? 60 : 38), r: m.signX + (A.p === "b" ? 60 : 38), t: m.signY - SPELL_UP - WARD_H, b: m.signY + 10 };
+        if(tgt && boxesMeet(zone, wardBodyBox(tgt)) && tgt.y >= m.signY - SPELL_UP && tgt.y <= m.signY + 50) mobBlow(m, tgt, ts, d, true);
+      } else if(k === "shot" || k === "bolt"){
+        var sx = m.x + dir2 * A.bw / 2, sy = mobShotLine(m), key = mobShotKey(m, k === "bolt");
+        var s = { m: m, x: sx, y: sy, x0: sx, dir: dir2, spell: k === "bolt", len: A.farLen + 40, tgt: tgt };
+        s.fx = vfx(key, sx, sy, { follow: s, dy: 0, flip: dir2 < 0, loop: true, must: true, cls: k === "bolt" ? "vfx-el-" + mobElement(m) : (m.spit ? "vfx-spit" : "") });
+        s.y = sy; MOB_SHOTS.push(s);
+      }
+      m.nextAttack = ts + 1400 + Math.random() * 900;
+    }
+  }
+   
+  function mobShotsTick(ts, dt, d){
+    for(var i = MOB_SHOTS.length - 1; i >= 0; i--){
+      var s = MOB_SHOTS[i]; s.x += s.dir * SHOT_SPEED * dt;
+      var t = s.tgt && (s.tgt === combat || s.tgt === combat.puppet) ? s.tgt : combat, done = Math.abs(s.x - s.x0) > s.len;
+      var w = wardBodyBox(t);
+      if(!done && s.x >= w.l - 6 && s.x <= w.r + 6 && s.y >= w.t && s.y <= w.b + 4){
+        var hit = mobBlow(s.m, t, ts, d, s.spell);
+        if(hit){ vfx(s.spell ? "hit_" + mobElement(s.m) : "hit_shot", s.x, s.y, { must: true }); done = true; }
+      }
+      if(done){ if(s.fx) vfxDrop(s.fx); MOB_SHOTS.splice(i, 1); }
+    }
+  }
+  function mobShotsClear(){ MOB_SHOTS.forEach(function(s){ if(s.fx) vfxDrop(s.fx); }); MOB_SHOTS.length = 0; }
 
    
 
@@ -29034,6 +29185,11 @@ var VHSprite = (function(){
         }); });
         if(nMag.lo || !(nMag.mid > 0) || !(nMag.hi / nAll.hi > 0.5) || !(nSt > 0 && nSt / nStAll < 0.3)) bad.push("monster magic / statuses by level: " + JSON.stringify({ magic: nMag, of: nAll, statuses: nSt + "/" + nStAll }));
          
+        var noAtk = Object.keys(MONSTER_TYPES).filter(function(t){ return !MOBATK[t]; });
+        if(noAtk.length) bad.push("monster kinds without an attack profile (src/data/mobattack.json): " + noAtk.slice(0, 6).join(", "));
+        var cst = mobAttackSetup(assignMonsterMagic({ type: "tidecaller", level: 37, dmg: 100, atkRange: 140 }));
+        if(!(cst.atk && cst.atk.far === "spell" && cst.magic)) bad.push("a Tidecaller does not cast (" + JSON.stringify(cst.atk) + ")");
+         
         var now = performance.now(); combat.status = {}; combat.buffs = {};
         inflictStatus("seal", 5000, 0, now); inflictStatus("dark", 5000, 0, now); inflictStatus("weak", 5000, 0, now);
         if(!statusOn("seal") || !statusOn("dark") || statusOn("weak")) bad.push("statuses: more than two at once, or one did not land");
@@ -29218,7 +29374,7 @@ var VHSprite = (function(){
 <script>
 /* installable app: register the service worker for offline play, check for a new build on every launch, and reload
    once when a new build takes over so the update shows without a second launch */
-var VH_BUILD = "v81 · Oct 2";
+var VH_BUILD = "v82 · Oct 2";
 if("serviceWorker" in navigator){
   window.addEventListener("load", function(){
     var reloaded = false;
