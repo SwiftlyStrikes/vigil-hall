@@ -18016,7 +18016,7 @@ var VHSprite = (function(){
   
 
 
-  function monsterStrike(m, ts, d, spell, blow0){
+  function monsterStrike(m, ts, d, spell, blow0, far){
           var iframe = ts < (combat.iframeUntil || 0);
           var blindMiss = !spell && mHas(m, "blindUntil", ts) && Math.random() < 0.6;
           var dodged = !iframe && !spell && (blindMiss || Math.random()*100 < dodgeChanceVs(m, d));
@@ -18025,7 +18025,7 @@ var VHSprite = (function(){
           if(iframe){ spawnFloat(combat.x, combat.y-FLOAT_Y, "Evaded!", "#2fd4ae"); }
           else if(dodged){ spawnFloat(combat.x, combat.y-FLOAT_Y, blindMiss ? "Miss" : "Dodge!", "#2fd4ae"); }
           else if(warded){ spawnFloat(combat.x, combat.y-FLOAT_Y, "Warded!", "#7dd3fc"); }
-          else if(guarded){ spawnFloat(combat.x, combat.y-FLOAT_Y, "Deflect!", "#ffe9ad"); m.stunUntil = Math.max(m.stunUntil || 0, ts + 1500); m.hitstunUntil = Math.max(m.hitstunUntil || 0, m.stunUntil); }
+          else if(guarded){ spawnFloat(combat.x, combat.y-FLOAT_Y, "Deflect!", "#ffe9ad"); if(!far){ m.stunUntil = Math.max(m.stunUntil || 0, ts + 1500); m.hitstunUntil = Math.max(m.hitstunUntil || 0, m.stunUntil); } }    
           else if(inSmoke()){ spawnFloat(combat.x, combat.y-FLOAT_Y, "Smoke Veil", "#9aa3b8"); }
           else {
             
@@ -18036,7 +18036,7 @@ var VHSprite = (function(){
             dmg = Math.round(dmg * (1 - Math.min(80, skEff("dmgTakenPct")) / 100));
             if(spell){ vfx("hit_magic", combat.x, combat.y - 46, { scale: 1.3 }); }    
              
-            var rf = (spell || m.state !== "alive") ? 0 : Math.min(60, skEff("reflectPct"));    
+            var rf = (spell || far || m.state !== "alive") ? 0 : Math.min(60, skEff("reflectPct"));    
             if(rf > 0){ var back = Math.round(dmg * rf / 100); dmg -= back; m.hp = Math.max(0, m.hp - back); spawnFloat(m.x, m.y - FLOAT_Y, "-" + back, "#ffe9ad"); if(m.hp <= 0) killMonster(m, ts); }
              
             var mg = Math.min(100, skEff("magicGuardPct"));
@@ -27053,6 +27053,20 @@ var VHSprite = (function(){
    
   function mobBodyBox(m){ var A = m.atk, hw = A.bw / 2; return { l: m.x - hw, r: m.x + hw, t: m.y - A.bh, b: m.y }; }
   function wardBodyBox(t){ return { l: t.x - WARD_HW, r: t.x + WARD_HW, t: t.y - WARD_H, b: t.y }; }
+  
+
+  var PRONE_H = 38, SHOT_PAD_UP = 6, SHOT_PAD_DOWN = 4;
+  
+
+  function shotInGround(x, y){
+    var plats = currentMap().platforms;
+    for(var i = 0; i < plats.length; i++){
+      var p = plats[i];
+      if(p.solid && x >= p.x1 && x <= p.x2 && y > platY(p, x) + 0.5) return true;
+    }
+    return false;
+  }
+  function shotBodyBox(t){ var b = wardBodyBox(t); if(t === combat && typeof playerProne === "function" && playerProne()){ b.t = t.y - PRONE_H; b.prone = true; } return b; }
   function boxesMeet(a, b, pad){ pad = pad || 0; return a.l - pad < b.r && b.l - pad < a.r && a.t - pad < b.b && b.t - pad < a.b; }
   function mobDirTo(m, t){ return t.x >= m.x ? 1 : -1; }
   function mobMeleeBox(m, dir){
@@ -27064,25 +27078,41 @@ var VHSprite = (function(){
     var A = m.atk, fx = (t.x - m.x) * dir;
     if(fx < -WARD_HW || fx - WARD_HW > A.farLen) return false;
     if(A.far === "spell") return Math.abs(t.y - m.y) <= A.farV;
-    var ly = mobShotLine(m), w = wardBodyBox(t); return ly >= w.t - 10 && ly <= w.b + 10;
+    var ly = mobShotLine(m), w = wardBodyBox(t); return ly >= w.t - SHOT_PAD_UP && ly <= w.b + SHOT_PAD_DOWN;    
   }
    
-  function mobBlow(m, tgt, ts, d, spell){
+  function mobBlow(m, tgt, ts, d, spell, far){
     if(tgt === combat.puppet){
       tgt.hp -= m.dmg; spawnDamageNumber(tgt, Math.round(m.dmg), "normal");
       if(tgt.hp <= 0){ tgt.until = 0; combat.puppet = null; }
       return 1;
     }
     if(ts < (combat.hurtUntil || 0)) return 0;
-    return monsterStrike(m, ts, d, spell) || -1;
+    return monsterStrike(m, ts, d, spell, null, !!far) || -1;    
+  }
+   
+  function mobWindBroken(m, ts){ return ts < (m.stunUntil || 0) || mHas(m, "sealUntil", ts) || mHas(m, "doomUntil", ts) || mHas(m, "hypnoUntil", ts); }
+  function mobCancelWind(m, ts){
+    m.telegraph = false; m.atkAnimAt = 0;
+    if(m.signFx){ vfxDrop(m.signFx); m.signFx = null; }
+    m.nextAttack = Math.max(m.nextAttack || 0, ts + 800);
   }
    
   function mobAttackTick(m, ts, d, tgt, canAttack, own){
     var A = m.atk; if(!A || own || m.passive) return;
-     
-    if(tgt && !mHas(m, "hypnoUntil", ts) && ts >= (m.touchNext || 0) && boxesMeet(mobBodyBox(m), wardBodyBox(tgt), -2)){
-      if(mobBlow(m, tgt, ts, d, false)) m.touchNext = ts + TOUCH_RETRY;
+    
+
+    if(!mHas(m, "hypnoUntil", ts)){
+      var body = mobBodyBox(m);
+      if(!playerInvisible() && ts >= (m.touchNext || 0) && boxesMeet(body, wardBodyBox(combat), -2)){
+        if(mobBlow(m, combat, ts, d, false)) m.touchNext = ts + TOUCH_RETRY;
+      }
+      var pup = combat.puppet;
+      if(pup && pup.hp > 0 && ts >= (m.pupTouchNext || 0) && boxesMeet(body, wardBodyBox(pup), -2)){
+        mobBlow(m, pup, ts, d, false); m.pupTouchNext = ts + HURT_MS;
+      }
     }
+    if(m.telegraph && mobWindBroken(m, ts)) mobCancelWind(m, ts);
      
     if(canAttack && tgt && !m.telegraph && ts >= m.nextAttack && ts >= (m.hitstunUntil || 0)){
       var dir = mobDirTo(m, tgt), kind = null;
@@ -27114,7 +27144,7 @@ var VHSprite = (function(){
         
 
         var zone = { l: m.signX - (A.p === "b" ? 60 : 38), r: m.signX + (A.p === "b" ? 60 : 38), t: m.signY - SPELL_UP - WARD_H, b: m.signY + 10 };
-        if(tgt && boxesMeet(zone, wardBodyBox(tgt)) && tgt.y >= m.signY - SPELL_UP && tgt.y <= m.signY + 50) mobBlow(m, tgt, ts, d, true);
+        if(tgt && boxesMeet(zone, wardBodyBox(tgt)) && tgt.y >= m.signY - SPELL_UP && tgt.y <= m.signY + 50) mobBlow(m, tgt, ts, d, true, true);
       } else if(k === "shot" || k === "bolt"){
         var sx = m.x + dir2 * A.bw / 2, sy = mobShotLine(m), key = mobShotKey(m, k === "bolt");
         var s = { m: m, x: sx, y: sy, x0: sx, dir: dir2, spell: k === "bolt", len: A.farLen + 40, tgt: tgt };
@@ -27124,16 +27154,27 @@ var VHSprite = (function(){
       m.nextAttack = ts + 1400 + Math.random() * 900;
     }
   }
-   
+  
+
+
+  function mobShotHits(s, t, ts, d){
+    var w = shotBodyBox(t);
+    if(!(s.x >= w.l - 6 && s.x <= w.r + 6 && s.y >= w.t - (w.prone ? 0 : SHOT_PAD_UP) && s.y <= w.b + SHOT_PAD_DOWN)) return false;    
+    if(!mobBlow(s.m, t, ts, d, s.spell, true)) return false;    
+    var el = mobElement(s.m), hk = s.spell && VFX["hit_" + el] ? "hit_" + el : (s.spell ? "hit_magic" : "hit_shot");
+    vfx(hk, s.x, s.y, { must: true });
+    return true;
+  }
   function mobShotsTick(ts, dt, d){
     for(var i = MOB_SHOTS.length - 1; i >= 0; i--){
-      var s = MOB_SHOTS[i]; s.x += s.dir * SHOT_SPEED * dt;
-      var t = s.tgt && (s.tgt === combat || s.tgt === combat.puppet) ? s.tgt : combat, done = Math.abs(s.x - s.x0) > s.len;
-      var w = wardBodyBox(t);
-      if(!done && s.x >= w.l - 6 && s.x <= w.r + 6 && s.y >= w.t && s.y <= w.b + 4){
-        var hit = mobBlow(s.m, t, ts, d, s.spell);
-        if(hit){ vfx(s.spell ? "hit_" + mobElement(s.m) : "hit_shot", s.x, s.y, { must: true }); done = true; }
-      }
+      var s = MOB_SHOTS[i], step = s.dir * SHOT_SPEED * dt, nx = s.x + step;
+      var walled = shotInGround(s.x + step * 0.5, s.y) || shotInGround(nx, s.y);
+      if(!walled) s.x = nx;
+      var done = Math.abs(s.x - s.x0) > s.len;
+      if(!done && !playerInvisible() && mobShotHits(s, combat, ts, d)) done = true;
+      var pup = combat.puppet;
+      if(!done && pup && pup.hp > 0 && mobShotHits(s, pup, ts, d)) done = true;
+      if(!done && walled){ vfx("hit_shot", s.x, s.y, { scale: 0.8 }); done = true; }
       if(done){ if(s.fx) vfxDrop(s.fx); MOB_SHOTS.splice(i, 1); }
     }
   }
@@ -29374,7 +29415,7 @@ var VHSprite = (function(){
 <script>
 /* installable app: register the service worker for offline play, check for a new build on every launch, and reload
    once when a new build takes over so the update shows without a second launch */
-var VH_BUILD = "v82 · Oct 2";
+var VH_BUILD = "v82.1 · Oct 3";
 if("serviceWorker" in navigator){
   window.addEventListener("load", function(){
     var reloaded = false;
